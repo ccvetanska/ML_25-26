@@ -129,6 +129,6 @@ The most important characteristic of `For Home` is **iterative feedback**. Its g
 
 Only over email, using the already established email thread in the beginning of the course (see the `Announcement` in `Moodle`).
 
-### Which Python version are we using?
+### Which version of Python are we using?
 
 Python 3.12.3
