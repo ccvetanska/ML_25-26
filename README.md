@@ -90,7 +90,7 @@ Please follow the instructions in one of the following two folders:
 
 ### How will I be graded?
 
-There will be two homeworks ($20\%$ of grade in total), a project ($30\%$ of grade) and a theoretical discussion ($50\%$ of the grade). There will be no exams.
+There will be two homeworks ($20$% of grade in total), a project ($30$% of grade) and a theoretical discussion ($50$% of the grade). There will be no exams.
 
 ### Can I submit my own project idea?
 
