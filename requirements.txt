@@ -11,3 +11,4 @@ networkx
 torchmetrics
 tqdm
 pillow
+yapf
