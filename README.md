@@ -7,7 +7,7 @@
 3. **Delight Viewers**: publish what you've learned in social platforms, build eye-catching solutions with the intention of showing your work to future customers/recruiters.
 4. **Safeguard Our Future**: if you feel you're treated unfairly or you want to discuss any other problem, don't wait - talk to me directly.
 5. **Value Each Other**: treat each other (and me) with respect, trust and integrity. The people that surround you now, might be your future colleagues. Act as if your actions have eternal consequences.
-6. **You learn as much as you want**: take full responsibility for the authenticity of your code! If you cannot write it on your own, let's write it together. You're not expected to solve everything - solve as much as you like.
+6. **You Learn As Much As You Want**: take full responsibility for the authenticity of your code! If you cannot write it on your own, let's write it together. You're not expected to solve everything - solve as much as you like and together we'll solve the rest.
 
 ## 📘 Set up an environment for working with Jupyter Notebooks and Python scripts
 
