@@ -12,3 +12,4 @@ torchmetrics
 tqdm
 pillow
 yapf
+PyQt6
