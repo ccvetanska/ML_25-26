@@ -18,21 +18,21 @@ Please follow the instructions in one of the following two folders:
 
 ## 🕒 Sessions with Simo
 
-1. ✅ 06.10, Monday, 7:15 pm, room
-2. 13.10, Monday, 7:15 pm, room
-3. 20.10, Monday, 7:15 pm, room
-4. 27.10, Monday, 7:15 pm, room
-5. 03.11, Monday, 7:15 pm, room
-6. **04.11, Tuesday, 7:15 pm, room**
-7. 10.11, Monday, 7:15 pm, room
-8. 17.11, Monday, 7:15 pm, room
-9. 24.11, Monday, 7:15 pm, room
-10. 01.12, Monday, 7:15 pm, room
-11. **02.12, Tuesday, 7:15 pm, room**
-12. **11.12, Thursday, 7:15 pm, room**
-13. 15.12, Monday, 7:15 pm, room
-14. 05.01, Monday, 7:15 pm, room
-15. 12.01, Monday, 7:15 pm, room
+1. ✅ 06.10, Monday, 7:15 pm, 013
+2. 13.10, Monday, 7:15 pm, 013
+3. 20.10, Monday, 7:15 pm, 013
+4. 27.10, Monday, 7:15 pm, 013
+5. 03.11, Monday, 7:15 pm, 013
+6. **04.11, Tuesday, 7:15 pm, 013**
+7. 10.11, Monday, 7:15 pm, 013
+8. 17.11, Monday, 7:15 pm, 013
+9. 24.11, Monday, 7:15 pm, 013
+10. 01.12, Monday, 7:15 pm, 013
+11. **02.12, Tuesday, 7:15 pm, 013**
+12. **11.12, Thursday, 7:15 pm, 013**
+13. 15.12, Monday, 7:15 pm, 013
+14. 05.01, Monday, 7:15 pm, 013
+15. 12.01, Monday, 7:15 pm, 013
 
 ## ⏰ Schedules
 
