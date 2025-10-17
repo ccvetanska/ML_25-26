@@ -61,6 +61,14 @@
       - [Violin Plot](#violin-plot)
     - [6. Customization and Subplots](#6-customization-and-subplots)
     - [7. Saving and Displaying Plots](#7-saving-and-displaying-plots)
+- [Week 02 - Machine learning with scikit-learn](#week-02---machine-learning-with-scikit-learn)
+  - [What is machine learning?](#what-is-machine-learning)
+  - [The `scikit-learn` syntax](#the-scikit-learn-syntax)
+  - [The classification challenge](#the-classification-challenge)
+  - [Measuring model performance](#measuring-model-performance)
+  - [Model complexity (overfitting and underfitting)](#model-complexity-overfitting-and-underfitting)
+  - [Hyperparameter optimization (tuning) / Model complexity curve](#hyperparameter-optimization-tuning--model-complexity-curve)
+  - [The Model Report](#the-model-report)
 
 # Week 01 - Numpy, Pandas, Matplotlib & Seaborn
 
@@ -1800,3 +1808,572 @@ plt.plot(x, y)
 </details>
 
 *Remember*: Seaborn plots are Matplotlib objects; customize with Matplotlib functions (e.g., `ax.set_title()`)
+
+
+# Week 02 - Machine learning with scikit-learn
+
+## What is machine learning?
+
+<details>
+
+<summary>What are some machine learning use cases you've heard of?</summary>
+
+The point here is to give at least **some** examples.
+
+Here are two possibilities out of many more:
+
+- email: spam vs not spam;
+- clustering books into different categories/genres based on their content;
+  - assigning any new book to one of the existing clusters.
+
+</details>
+
+<details>
+
+<summary>What is machine learning?</summary>
+
+A process whereby computers learn to make decisions from data without being explicitly programmed.
+
+</details>
+
+<details>
+
+<summary>What types of machine learning do you know?</summary>
+
+Machine learning approaches are traditionally divided into three broad categories, which correspond to learning paradigms:
+
+- Supervised learning;
+- Unsupervised learning;
+- Reinforcement learning.
+
+</details>
+
+<details>
+
+<summary>What is supervised learning?</summary>
+
+Uncovering patterns in labeled data. Here all possible values to be predicted are already known, and a model is built with the aim of accurately predicting those values on new data.
+
+</details>
+
+<details>
+
+<summary>Can you give an example?</summary>
+
+- Given a labelled set of images (cat or dog), output a label of a new image, not present in the labelled set.
+- Given the transactional history of a person, output the likelihood of them being able to pay out their loan.
+
+</details>
+
+</details>
+
+<details>
+
+<summary>What are the main methods of supervised learning?</summary>
+
+- Regression.
+- Classification.
+
+</details>
+
+<details>
+
+<summary>What is unsupervised learning?</summary>
+
+Uncovering patterns in unlabeled data.
+
+</details>
+
+</details>
+
+<details>
+
+<summary>Can you give some examples?</summary>
+
+- Clustering books into different categories/genres based on their content.
+- Grouping customers into categories based on their purchasing behavior without knowing in advance what those categories are:
+
+![w02_clustering01.png](./assets/w02_clustering01.png "w02_clustering01.png")
+
+</details>
+
+<details>
+
+<summary>What are features?</summary>
+
+Measurable characteristics of the examples that our model uses to predict the value of the target variable.
+
+</details>
+
+<details>
+
+<summary>What are observations?</summary>
+
+The individual samples/examples that our model uses.
+
+</details>
+
+<details>
+
+<summary>Do you know any synonyms of the "feature" term?</summary>
+
+feature = characteristic = predictor variable = independent variable
+
+</details>
+
+<details>
+
+<summary>Do you know any synonyms of the "target variable" term?</summary>
+
+target variable = dependent variable = label = response variable
+
+</details>
+
+<details>
+
+<summary>What features could be used to predict the position of a football player?</summary>
+
+`goals_per_game`, `assists_per_game`, `steals_per_game`, `number_of_passes`
+
+We can represent these features along with the target in a 2D table:
+
+- horizontally, we put the observations;
+- vertically, we put their features.
+
+Here an example in the world of basketball:
+
+![w02_basketball_example.png](./assets/w02_basketball_example.png "w02_basketball_example.png")
+
+</details>
+
+<details>
+
+<summary>What is classification?</summary>
+
+Classification is used to predict the label, or category, of an observation.
+
+</details>
+
+<details>
+
+<summary>What are some examples of classification?</summary>
+
+- Predict whether a bank transaction is fraudulent or not. As there are two outcomes here - a fraudulent transaction, or non-fraudulent transaction, this is known as **binary classification**.
+- Same is true for spam detection in emails.
+
+</details>
+
+<details>
+
+<summary>What is regression?</summary>
+
+Regression is used to predict continuous values.
+
+</details>
+
+<details>
+
+<summary>What are some examples of regression?</summary>
+
+- A model can use features such as the number of bedrooms, and the size of a property, to predict the target variable - the price of that property.
+- Predicting the amount of electricity used in a city based on the day of the year and the events, happening in the city.
+- Predicting the amount of rain based on pictures of clouds.
+
+</details>
+
+<details>
+
+<summary>Let's say you want to create a model using supervised learning (for ex. to predict the price of a house). What requirements should the data, you want to use to train the model with, conform to?</summary>
+
+It must:
+
+- not have missing values;
+- be in a numerical format;
+- stored somewhere in a known format (csv files, parquet files, Amazon S3 buckets, etc.).
+
+</details>
+
+<details>
+
+<summary>How can we make sure that our data conforms to those requirements?</summary>
+
+We must look at our data, explore it. In other words, we need to **perform exploratory data analysis (EDA) first**. Various `pandas` methods for descriptive statistics, along with appropriate data visualizations, are useful in this step.
+
+</details>
+
+<details>
+
+<summary>Do you know what `scikit-learn` is?</summary>
+
+It is a Python package for using already implemented machine learning models and helpful functions centered around the process of creating and evaluating such models. Feel free to take a tour in [it's documentation](https://scikit-learn.org/).
+
+Install using `pip install scikit-learn` and import using `import sklearn`.
+
+</details>
+
+<details>
+
+<summary>Have you heard of any supervised machine learning models?</summary>
+
+Here are some:
+
+- K-Nearest Neighbors (KNN);
+- Linear regression;
+- Logistic regression;
+- Support vector machines (SVM);
+- Decision tree;
+- Random forest;
+- XGBoost;
+- CatBoost.
+
+Explore more [in scikit-learn's documentation](https://scikit-learn.org/stable/supervised_learning.html).
+
+</details>
+
+## The `scikit-learn` syntax
+
+`scikit-learn` follows the same syntax for all supervised learning models, which makes the workflow repeatable:
+
+```python
+# 1. Import a Model class
+from sklearn.module import Model
+
+# 2. Instantiate an object from the Model class
+model = Model()
+
+# 3. Fit the model object to your data (X is the array of features, and y is the array of target values)
+# Notice the casing:
+#   - capital letters represent matrices
+#   - lowercase letters represent vectors
+# During this step most models learn the patterns about the features and the target variable
+model.fit(X, y)
+
+# 4. Use the model's "predict" method, passing X_new - new features of observations to get predictions
+predictions = model.predict(X_new)
+```
+
+For example, if feeding features from six emails to a spam classification model, an array of six values is returned:
+
+- `1` indicates the model predicts that email is spam;
+- `0` indicates a prediction of not spam.
+
+```python
+print(predictions)
+```
+
+```console
+array([0, 0, 0, 0, 1, 0])
+```
+
+<details>
+
+<summary>What term is used to refer to the data from which a model learns the patterns?</summary>
+
+As the model learns from the data, we call this the ***training* data**.
+
+</details>
+
+## The classification challenge
+
+Let's say we have the following labelled data - what approaches can we use to assign a label for the back point?
+
+![w02_knn_example.png](./assets/w02_knn_example.png "w02_knn_example.png")
+
+<details>
+
+<summary>Reveal answer</summary>
+
+We can use the geometry of the space and look at the labels of the closest points.
+
+</details>
+
+<details>
+
+<summary>Do you know how the model K-Nearest Neighbors (KNN) works?</summary>
+
+It predicts the label of a data point by:
+
+- looking at the `k` closest labeled data points;
+- taking a majority vote.
+
+</details>
+
+<details>
+
+<summary>What class would the black point be assigned to if k = 3?</summary>
+
+The red one, since from the closest three points, two of them are from the red class.
+
+![w02_knn_example2.png](./assets/w02_knn_example2.png "w02_knn_example2.png")
+
+</details>
+
+- `K-Nearest Neighbors` is a **non-linear classification and regression model**:
+  - it creates a decision boundary between classes (labels)/values. Here's what it looks like on a dataset of customers who churned vs those who did not:
+
+    ![w02_knn_example3.png](./assets/w02_knn_example3.png "w02_knn_example3.png")
+
+- Using `scikit-learn` to fit the classifier variant of KNN follows the standard syntax:
+
+    ```python
+    # import the KNeighborsClassifier from the sklearn.neighbors module
+    from sklearn.neighbors import KNeighborsClassifier
+    
+    # split our data into X, a 2D NumPy array of our features, and y, a 1D NumPy array of the target values
+    df_churn = pd.read_csv('https://sagemaker-sample-files.s3.amazonaws.com/datasets/tabular/synthetic/churn.csv')
+    X = df_churn[['Day Charge', 'Eve Charge']]
+    y = df_churn['Churn?']
+
+    # the target is expected to be a single column with the same number of observations as the feature data
+    print(X.shape, y.shape)
+    ```
+
+    ```console
+    (5000, 2) (5000,)
+    ```
+
+    We then instantiate the `KNeighborsClassifier`, setting `n_neighbors=15`, and fit it to the labeled data.
+
+    ```python
+    knn = KNeighborsClassifier(n_neighbors=15)
+    knn.fit(X, y)
+    ```
+
+- Predicting unlabeled data also follows the standard syntax:
+
+    Let's say we have a set of new observations, `X_new`. Checking the shape of `X_new`, we see it has three rows and two columns, that is, three observations and two features.
+
+    ```python
+    X_new = np.array([[56.8, 17.5],
+                      [24.4, 24.1],
+                      [50.1, 10.9]])
+    print(X_new.shape)
+    ```
+
+    ```console
+    (3, 2)
+    ```
+
+    We use the classifier's `predict` method and pass it the unseen data, again, as a 2D NumPy array of features and observations.
+
+    Printing the predictions returns a binary value for each observation or row in `X_new`. It predicts `1`, which corresponds to `'churn'`, for the first observation, and `0`, which corresponds to `'no churn'`, for the second and third observations.
+
+    ```python
+    predictions = knn.predict(X_new)
+    print(f'{predictions=}') # notice this syntax! It's valid and cool!
+    ```
+
+    ```console
+    predictions=[1 0 0]
+    ```
+
+## Measuring model performance
+
+<details>
+
+<summary>How do we know if the model is making correct predictions?</summary>
+
+We can evaluate its performance on seen and unseen data during training.
+
+</details>
+
+<details>
+
+<summary>What is a metric?</summary>
+
+A number which characterizes the quality of the model - the higher the metric value is, the better.
+
+</details>
+
+<details>
+
+<summary>What metrics could be useful for the task of classification?</summary>
+
+A commonly-used metric is accuracy. Accuracy is the number of correct predictions divided by the total number of observations:
+
+![w02_accuracy_formula.png](./assets/w02_accuracy_formula.png "w02_accuracy_formula.png")
+
+There are other metrics which we'll explore further.
+
+</details>
+
+<details>
+
+<summary>On which data should accuracy be measured - seen during training or unseen during training?</summary>
+
+We could compute accuracy on the data used to fit the classifier, however, as this data was used to train the model, performance will not be indicative of how well it can **generalize to unseen data**, which is what we are interested in!
+
+We can still measure the training accuracy, but only for book-keeping purposes.
+
+We should split the data into a part that is used to train the model and a part that's used to evaluate it.
+
+![w02_train_test.png](./assets/w02_train_test.png "w02_train_test.png")
+
+We fit the classifier using the training set, then we calculate the model's accuracy against the test set's labels.
+
+![w02_training.png](./assets/w02_training.png "w02_training.png")
+
+Here's how we can do this in Python:
+
+```python
+# we import the train_test_split function from the sklearn.model_selection module
+from sklearn.model_selection import train_test_split
+
+# We call train_test_split, passing our features and targets.
+# 
+# parameter test_size: We commonly use 20-30% of our data as the test set. By setting the test_size argument to 0.3 we use 30% here.
+# parameter random_state: The random_state argument sets a seed for a random number generator that splits the data. Using the same number when repeating this step allows us to reproduce the exact split and our downstream results.
+# parameter stratify: It is best practice to ensure our split reflects the proportion of labels in our data. So if churn occurs in 10% of observations, we want 10% of labels in our training and test sets to represent churn. We achieve this by setting stratify equal to y.
+# 
+# return value: four arrays: the training data, the test data, the training labels, and the test labels. We unpack these into X_train, X_test, y_train, and y_test, respectively.
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.3, random_state=21, stratify=y)
+
+# We then instantiate a KNN model and fit it to the training data.
+knn = KNeighborsClassifier(n_neighbors=6)
+knn.fit(X_train, y_train)
+
+# To check the accuracy, we use the "score" method, passing X_test and y_test.
+print(knn.score(X_test, y_test))
+```
+
+```console
+0.8800599700149925
+```
+
+</details>
+
+<details>
+
+<summary>What is the accuracy of any KNN model on training data when k=1?</summary>
+
+Always 100% because the model has seen the data. For every point we're asking the model to return the class of the closest labelled point, but that closest labelled point is the starting point itself (reflection).
+
+</details>
+
+<details>
+
+<summary>We train a model to predict cats. If our labels have a ratio cats/dogs = 9/1, what would be your conclusion about a model that achieves an accuracy of 88%?</summary>
+
+It is low, since even the greedy strategy of always assigning the most common class, would be more accurate than our model - 90%.
+
+The model that implements the greedy strategy is called the **baseline model**. We should always strive to create a model much better than the baseline model.
+
+</details>
+
+## Model complexity (overfitting and underfitting)
+
+Let's discuss how to interpret `k` in the K-Nearest Neighbors model.
+
+We saw that `KNN` creates decision boundaries, which are thresholds for determining what label a model assigns to an observation.
+
+In the image shown below, as **`k` increases**, the decision boundary is less affected by individual observations, reflecting a **simpler model**:
+
+![w02_k_interpretation.png](./assets/w02_k_interpretation.png "w02_k_interpretation.png")
+
+**Simpler models are less able to detect relationships in the dataset, which is known as *underfitting***. In contrast, complex models can be sensitive to noise in the training data, rather than reflecting general trends. This is known as ***overfitting***.
+
+So, for any `KNN` classifier:
+
+- Larger `k` = Less complex model = Can cause underfitting
+- Smaller `k` = More complex model = Can cause overfitting
+
+## Hyperparameter optimization (tuning) / Model complexity curve
+
+<details>
+
+<summary>What are hyperparameters?</summary>
+
+The parameters of the models - the ones that are passed during object instantiation.
+
+</details>
+
+<details>
+
+<summary>What are some hyperparameters of the KNN model?</summary>
+
+- `k`;
+- Metric to use for distance computation: `manhattan`, `euclidean`;
+- See other hyperparameters in the [documentation of KNN](https://scikit-learn.org/stable/modules/generated/sklearn.neighbors.KNeighborsClassifier.html#sklearn.neighbors.KNeighborsClassifier).
+
+</details>
+
+We can also interpret `k` using a model complexity curve - the idea is to calculate the accuracy on the training and test sets using incremental `k` values, and plot the results:
+
+1. Create empty dictionaries to store the train and test accuracies, and an array containing a range of `k` values.
+2. Use a `for`-loop to go through the neighbors array and, inside the loop, instantiate a KNN model with `n_neighbors` equal to the current iterator
+3. Fit to the training data.
+4. Calculate training and test set accuracies, storing the results in their respective dictionaries.
+
+After our `for` loop, we can plot the training and test values, including a legend and labels:
+
+```python
+plt.figure(figsize=(8, 6))
+plt.title('KNN: Varying Number of Neighbors')
+plt.plot(neighbors, train_accuracies.values(), label='Training Accuracy')
+plt.plot(neighbors, test_accuracies.values(), label='Testing Accuracy')
+plt.legend()
+plt.xlabel('Number of Neighbors')
+plt.ylabel('Accuracy')
+plt.show()
+```
+
+![w02_knn_results.png](./assets/w02_knn_results.png "w02_knn_results.png")
+
+<details>
+
+<summary>What can you conclude from the plot?</summary>
+
+We see that as `k` increases beyond `15` we see underfitting where performance plateaus on both test and training sets. The peak test accuracy actually occurs at around `13` neighbors.
+
+</details>
+
+Which of the following situations looks like an example of overfitting?
+
+```text
+A. Training accuracy 50%, testing accuracy 50%.
+B. Training accuracy 95%, testing accuracy 95%.
+C. Training accuracy 95%, testing accuracy 50%.
+D. Training accuracy 50%, testing accuracy 95%.
+```
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Answer: C.
+
+</details>
+
+## The Model Report
+
+Whenever we're building a model, we're going to have to produce the so-called **Model report**. This is an Excel file, but serves as the basis of our work and tells the story of our journey. It is typically **presented to your clients** and shows what has been tried out, what worked, what didn't and, ultimately, which is the best model for the task.
+
+Here're the guidelines we'll follow:
+
+1. Each row is a hypothesis - a model that was trained and evaluated.
+2. The columns are divided into two sets: the first set of columns represent the values of the hyperparameters of the model, the second set: the metrics on the **test** set. Do not use more than `3` metrics.
+3. The first row holds the so-called **baseline model**. This model can be only one of two things: if currently there is a deployed model on the client's environment, then it is taken to be the baseline model. Otherwise the baseline model is the greediest statistical model. For example, this is the model that predicts the most common class in classification problems.
+4. The columns that show the metrics express both the value of the metric as well as the percentage of change **compared to the *baseline* model** (we're striving for percentage increase, but should report every case).
+5. The rightmost column should be titled `Comments` and should hold our interpretation of the model (what do we see as metrics, is it good, is it bad, etc). We may include the so-called `Error Analysis` which details where this model makes mistakes.
+6. Above or below the main table there should be a cell that **explicitly** states which is the best model and why.
+7. Below the table or in other sheets there should be the following diagrams: `train vs validation metric` (the main metric used) and if the model outputs a loss, we should have a `train vs validation loss` diagram.
+8. The table should not be a pandas export - it should be coloured and tell the story of modelling. Bold and/or highlight the entries in which the metric is highest or to which you want to draw attention to.
+9. Do not sort the table after completing the experiments - it should be in the order of the created models. This lets you build up on the section `Comments` and easily track the changes made.
+10. Do not create a very wide table - it **should be easy to understand which is the best model** in one to two seconds of looking at it. Focus on the user experience.
+11. Optionally, you could create an additional sheet for the best model in which you put 4-5 examples of correct and incorrect predictions. This will control the client's expectations.
+
+> **Tip**: Since we're talking about doing a lot of experiments (typically `50` - `200`), you'll find it tedious to use Jupyter notebooks. Instead, create **scripts** and run them **in parallel**. This will speed up modelling speed tremendously!
+
+The end result is a table that is present in most scientific papers. Here are some examples:
+
+- [EXAMS-V: A Multi-Discipline Multilingual Multimodal Exam Benchmark for Evaluating Vision Language Models](https://arxiv.org/pdf/2403.10378)
+
+![w02_ex_table1.png](./assets/w02_ex_table1.png "w02_ex_table1.png")
+
+- [ImageNet Classification with Deep Convolutional Neural Networks](https://proceedings.neurips.cc/paper_files/paper/2012/file/c399862d3b9d6b76c8436e924a68c45b-Paper.pdf)
+
+![w02_ex_table2.png](./assets/w02_ex_table2.png "w02_ex_table2.png")
+
+- [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805)
+
+![w02_ex_table3.png](./assets/w02_ex_table3.png "w02_ex_table3.png")
