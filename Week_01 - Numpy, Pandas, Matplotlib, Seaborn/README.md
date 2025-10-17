@@ -23,7 +23,7 @@ Advice:
    2. Safe from bugs.
    3. Ready for change.
 - Rotate when solving tasks: one person solves task 1, another task 2, and so on.
-- Solve the solutions to each part in a corresponding folder.
+- Put the solutions to each part in a corresponding folder.
 
 ## Table of Contents
 
