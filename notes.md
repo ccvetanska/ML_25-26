@@ -1809,7 +1809,6 @@ plt.plot(x, y)
 
 *Remember*: Seaborn plots are Matplotlib objects; customize with Matplotlib functions (e.g., `ax.set_title()`)
 
-
 # Week 02 - Machine learning with scikit-learn
 
 ## What is machine learning?
