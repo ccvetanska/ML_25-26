@@ -69,6 +69,17 @@
   - [Model complexity (overfitting and underfitting)](#model-complexity-overfitting-and-underfitting)
   - [Hyperparameter optimization (tuning) / Model complexity curve](#hyperparameter-optimization-tuning--model-complexity-curve)
   - [The Model Report](#the-model-report)
+- [Week 03 - Regression](#week-03---regression)
+  - [Regression problems](#regression-problems)
+  - [Regression mechanics](#regression-mechanics)
+  - [Modelling via regression](#modelling-via-regression)
+    - [Data Preparation](#data-preparation)
+    - [Modelling](#modelling)
+  - [Model evaluation](#model-evaluation)
+    - [Visually](#visually)
+    - [Using a metric](#using-a-metric)
+      - [Adjusted $R^2$ ($R\_{adj}^2$)](#adjusted-r2-r_adj2)
+    - [Using a loss function](#using-a-loss-function)
 
 # Week 01 - Numpy, Pandas, Matplotlib & Seaborn
 
@@ -2376,3 +2387,752 @@ The end result is a table that is present in most scientific papers. Here are so
 - [BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding](https://arxiv.org/pdf/1810.04805)
 
 ![w02_ex_table3.png](./assets/w02_ex_table3.png "w02_ex_table3.png")
+
+# Week 03 - Regression
+
+## Regression problems
+
+<details>
+
+<summary>What values does the target variable have in regression problems?</summary>
+
+Continuous values.
+
+</details>
+
+<details>
+
+<summary>What are some examples of such values?</summary>
+
+Any number: `weight`, `price`, `temperature`, `score`, `country's GDP`, etc.
+
+</details>
+
+Let's say we have a dataset containing women's health data. Our goal is to create a model that predicts blood glucose levels.
+
+<details>
+
+<summary>How can we approach this problem? / What is the first step we do when creating a model?</summary>
+
+Exploratory data analysis! We start creating plots to see the predictive power of the features.
+
+</details>
+
+Let's say that we find a feature $x$ (ex. `insulin` levels) that when plotted against $y$ ($y$ = blood glucose level) produces this scatter plot:
+
+![w03_sample_data.png](./assets/w03_sample_data.png "w03_sample_data.png")
+
+<details>
+
+<summary>What does this tell us about the feature - is it useful to use it when training the model?</summary>
+
+Yep! It is very much positively correlated with the target, thus we could even say, we only need this one feature to create our model!
+
+</details>
+
+<details>
+
+<summary>What would be the geometric equivalent to our model (if we were to draw the model, what would it be)?</summary>
+
+It'd have to be the line of best fit - the one that comes as close as possible to the actual blood glucose levels:
+
+![w03_sample_data_sol.png](./assets/w03_sample_data_sol.png "w03_sample_data_sol.png")
+
+</details>
+
+<details>
+
+<summary>What is linear regression then?</summary>
+
+A **statistical model** that estimates the **relationship** between a scalar response (dependent variable) and one or more explanatory variables (regressor or independent variable).
+
+The method through which that model is created is called **regression analysis**.
+
+> **Note**: At least **some** relationship **must exist** in order for us to conclude that we can use a regression model for this task.
+
+</details>
+
+## Regression mechanics
+
+Let's see how we can obtain this line.
+
+We'll need to small recap of Linear Algebra to see how things are related.
+
+At the heart of Linear Algebra is the **linear transformation**.
+
+<details>
+
+<summary>What are transformations in the context of Linear Algebra?</summary>
+
+Any function that takes a **single vector as input** and **outputs a single vector**.
+
+The word `transformation` suggests that we think in terms of **movement** in $n$-d space.
+
+![w03_transformation.gif](./assets/w03_transformation.gif "w03_transformation.gif")
+
+</details>
+
+<details>
+
+<summary>What are linear transformations?</summary>
+
+Transformations that keep grid lines **parallel** and **evenly spaced**.
+
+![w03_linear_transformation.gif](./assets/w03_linear_transformation.gif "w03_linear_transformation.gif")
+
+</details>
+
+<details>
+
+<summary>What is a matrix?</summary>
+
+A numerical description of a linear transformation.
+
+![w03_matrix.gif](./assets/w03_matrix.gif "w03_matrix.gif")
+
+</details>
+
+<details>
+
+<summary>What does it mean visually for a matrix to have linearly dependent columns?</summary>
+
+The vectors on which the basis vectors land on are scaled versions of each other:
+
+![w03_matrix_lin_dep.gif](./assets/w03_matrix_lin_dep.gif "w03_matrix_lin_dep.gif")
+
+</details>
+
+<details>
+
+<summary>What is the visual interpretation of the determinant of a matrix?</summary>
+
+![w03_matrix_det.gif](./assets/w03_matrix_det.gif "w03_matrix_det.gif")
+
+</details>
+
+<details>
+
+<summary>What is the definition of the determinant of a matrix then?</summary>
+
+The factor by which a linear transformation changes areas.
+
+To recap the formulas used to compute the determinants, we can refer to the [Wikipedia page](https://en.wikipedia.org/wiki/Determinant).
+
+</details>
+
+<details>
+
+<summary>When is the determinant zero?</summary>
+
+When the columns of the matrix are linearly dependent.
+
+![w03_matrix_lower_dim.gif](./assets/w03_matrix_lower_dim.gif "w03_matrix_lower_dim.gif")
+
+</details>
+
+<details>
+
+<summary>What is the inverse of a matrix?</summary>
+
+In general, $A^{-1}$ is the unique transformation with the property that if you apply the transformation $A$, and follow it with the transformation $A$ inverse, you end up back where you started.
+
+![w03_sheer_inverse.gif](./assets/w03_sheer_inverse.gif "w03_sheer_inverse.gif")
+
+</details>
+
+<details>
+
+<summary>Why is the inverse helpful?</summary>
+
+It allows us to solve linear systems of equations.
+
+![w03_usecase_inverse.png](./assets/w03_usecase_inverse.png "w03_usecase_inverse.png")
+
+</details>
+
+<details>
+
+<summary>Which matrices are not invertible?</summary>
+
+The ones that have a determinant of $0$.
+
+</details>
+
+Let's say that we have $Ax = b$.
+
+<details>
+
+<summary>If A is not invertible, does that mean there is no solution?</summary>
+
+A solution exists if and only if $b$ lies in the lower dimensional space or is the $0$ vector:
+
+![w03_sol_when_no_inverse.png](./assets/w03_sol_when_no_inverse.png "w03_sol_when_no_inverse.png")
+
+</details>
+
+<details>
+
+<summary>What is the "rank" of a matrix?</summary>
+
+- The number of dimensions in the output of a transformation.
+- The number of linearly independent columns.
+
+</details>
+
+What is the rank of this matrix?
+
+$$
+\begin{bmatrix}
+1 & -2 & 4 \\
+-2 & 4 & -8 \\
+5 & -10 & 20
+\end{bmatrix}
+$$
+
+<details>
+
+<summary>Reveal answer</summary>
+
+The columns of this matrix can be expressed as
+\[
+\begin{bmatrix}
+1 \\ -2 \\ 5
+\end{bmatrix}
+= -\tfrac{1}{2}
+\begin{bmatrix}
+-2 \\ 4 \\ -10
+\end{bmatrix}
+= \tfrac{1}{4}
+\begin{bmatrix}
+4 \\ -8 \\ 20
+\end{bmatrix}.
+\]
+Since they are all linearly dependent and form a line, the rank is $1$.
+
+</details>
+
+What's the dot product of $\left[\begin{smallmatrix}4\\6\end{smallmatrix}\right]$ and $\left[\begin{smallmatrix}-3\\2\end{smallmatrix}\right]$?
+
+<details>
+
+<summary>Reveal answer</summary>
+
+$4(-3) + 6(2) = -12 + 12 = 0$
+
+</details>
+
+<details>
+
+<summary>What does this mean for these vectors?</summary>
+
+They are perpendicular to each other.
+
+![w03_zero_dot.png](./assets/w03_zero_dot.png "w03_zero_dot.png")
+
+</details>
+
+<details>
+
+<summary>What is the geometric interpretation of the dot product?</summary>
+
+We project one onto the other and take multiply their lengths:
+
+![w03_dot_product_viz.gif](./assets/w03_dot_product_viz.gif "w03_dot_product_viz.gif")
+
+</details>
+
+<details>
+
+<summary>What is relationship between dot products and matrix-vector multiplication?</summary>
+
+The dual of a vector is the linear transformation it encodes, and the dual of a linear transformation from some space to one dimension is a certain vector in that space.
+
+$$a \cdot b = a^Tb$$
+
+![w03_duality.png](./assets/w03_duality.png "w03_duality.png")
+
+</details>
+
+Ok, awesome, let's now go back to our example:
+
+![w03_sample_data_sol.png](./assets/w03_sample_data_sol.png "w03_sample_data_sol.png")
+
+<details>
+
+<summary>How can we write the above in the context of equations?</summary>
+
+If we label the points as follows:
+
+![w03_sample_data_sol_lbl.png](./assets/w03_sample_data_sol_lbl.png "w03_sample_data_sol_lbl.png")
+
+Then we can produce three equations:
+
+$$
+\begin{align*}
+y_1 &= \beta_0 + \beta_1x_1 \\
+y_2 &= \beta_0 + \beta_1x_2 \\
+y_3 &= \beta_0 + \beta_1x_3
+\end{align*}
+$$
+
+</details>
+
+<details>
+
+<summary>What can go wrong in the above equations?</summary>
+
+We have three equations, but only $2$ unknowns. The system might be inconsistent, i.e. there doesn't exist a solution.
+
+There might not be any single line that can pass through our datapoints (which as we can see is indeed the case).
+
+</details>
+
+<details>
+
+<summary>What does this mean geometrically - how can we visualize the problem?</summary>
+
+The columns of this matrix can be expressed as
+
+\[
+\begin{bmatrix}
+y_1 \\ y_2 \\ y_3
+\end{bmatrix}
+= \beta_0
+\begin{bmatrix}
+1 \\ 1 \\ 1
+\end{bmatrix} +
+\beta_1
+\begin{bmatrix}
+x_1 \\ x_2 \\ x_3
+\end{bmatrix}.
+\]
+
+And we'll see that actually **$y$ cannot be reached via a linear combination of the $1$s and the $x$s**:
+
+![w03_sample_data_sol_prb.png](./assets/w03_sample_data_sol_prb.png "w03_sample_data_sol_prb.png")
+
+If there was a solution, then $y$ would lie in the plane.
+
+</details>
+
+<details>
+
+<summary>Hmm - ok, this is a bummer - what can we do?</summary>
+
+The strategy of least squares is:
+
+1. Project $y$ onto the plane.
+2. Choose $\beta$ values which can get us to that projection.
+
+![w03_sample_data_strat.png](./assets/w03_sample_data_strat.png "w03_sample_data_strat.png")
+
+</details>
+
+But, how do we choose this $\hat{y}$?
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Well, we want to get the best model, right?
+
+So the question is "Which choice of $\hat{y}$ comes as close as possible to the actual $y$?".
+
+It must be where the **rejection vector** ($y - \hat{y}$) is perpendicular to the plane. Any other choice would be farther away.
+
+Minimizing this distance is why the method is referred to as *least squares*. The loss function we'll see shortly - sum of squared residuals is the squared length of this rejection vector.
+
+</details>
+
+Ok, so now we have $\hat{y}$ (orthogonal projection of $y$) - how do we compute the values for the $\beta$s?
+
+<details>
+
+<summary>Reveal answer</summary>
+
+Since the projection and rejection are orthogonal to the plane, they are orthogonal to the vectors with $1$ and $x$:
+
+$$(y - \hat{y}) \cdot 1 = 0$$
+
+and
+
+$$(y - \hat{y}) \cdot x = 0$$
+
+Let's rearrange to get positive signs:
+
+$$1 \cdot \hat{y} = 1 \cdot y$$
+
+$$x \cdot \hat{y} = x \cdot y$$
+
+We know what $\hat{y}$ is:
+
+$$1 \cdot (\beta_01 + \beta_1x)= 1 \cdot y$$
+
+$$x \cdot (\beta_01 + \beta_1x)= x \cdot y$$
+
+Removing the parenthesis:
+
+$$\beta_01 \cdot 1 + \beta_11 \cdot x = 1 \cdot y$$
+
+$$\beta_0x \cdot 1 + \beta_1x \cdot x = x \cdot y$$
+
+And we get to a matrix format:
+
+\[
+\begin{bmatrix}
+1 \cdot 1 & 1 \cdot x \\ x \cdot 1 & x \cdot x
+\end{bmatrix}
+\begin{bmatrix}
+\beta_0 \\ \beta_1
+\end{bmatrix}
+= \begin{bmatrix}
+1 \cdot y \\ x \cdot y
+\end{bmatrix}
+\]
+
+Let's use the dual property of vectors:
+
+\[
+\begin{bmatrix}
+1^T 1 & 1^T x \\ x^T 1 & x^T x
+\end{bmatrix}
+\begin{bmatrix}
+\beta_0 \\ \beta_1
+\end{bmatrix}
+= \begin{bmatrix}
+1^T y \\ x^T y
+\end{bmatrix}
+\]
+
+And we can further decompose the left-most matrix:
+
+\[
+\begin{bmatrix}
+1^T \\ x^T
+\end{bmatrix}
+\begin{bmatrix}
+1 & x
+\end{bmatrix}
+\begin{bmatrix}
+\beta_0 \\ \beta_1
+\end{bmatrix}
+= \begin{bmatrix}
+1^T y \\ x^T y
+\end{bmatrix}
+\]
+
+And take out the repeating $y$:
+
+\[
+\begin{bmatrix}
+1^T \\ x^T
+\end{bmatrix}
+\begin{bmatrix}
+1 & x
+\end{bmatrix}
+\begin{bmatrix}
+\beta_0 \\ \beta_1
+\end{bmatrix}
+= \begin{bmatrix}
+1^T \\ x^T
+\end{bmatrix} y
+\]
+
+Now, if we put all the features into their own matrix, we'll get the famous **normal equation** associated with $X\beta = y$:
+
+\[
+X=
+\begin{bmatrix}
+1 & x
+\end{bmatrix}
+\]
+
+\[
+X^T X
+\begin{bmatrix}
+\beta_0 \\ \beta_1
+\end{bmatrix}
+= X^T y
+\]
+
+</details>
+
+<details>
+
+<summary>What would be the formula for our model's coefficients?</summary>
+
+We'd have to invert:
+
+\[
+\begin{bmatrix}
+\beta_0 \\ \beta_1
+\end{bmatrix}
+= (X^T X)^{-1} X^T y
+\]
+
+</details>
+
+<details>
+
+<summary>What would be the formula for the model's predictions?</summary>
+
+We'll use the original formula we got:
+
+$$\hat{y} = \beta_01 + \beta_1x$$
+
+Convert it to a matrix form via the dual property:
+
+\[
+\hat{y}
+= \begin{bmatrix}
+1 & x
+\end{bmatrix}
+\begin{bmatrix}
+\beta_0 \\ \beta_1
+\end{bmatrix}
+\]
+
+And then substitute with what we just found, firstly the capital $X$:
+
+\[
+\hat{y}
+= X
+\begin{bmatrix}
+\beta_0 \\ \beta_1
+\end{bmatrix}
+\]
+
+And then the formula for the coefficients:
+
+$$\hat{y} = X(X^T X)^{-1} X^T y$$
+
+In addition, $X(X^T X)^{-1} X^T$ is the projection matrix.
+
+</details>
+
+Ok, great! So, everything is nice and easy, just solve the equation and we're good to go, right?
+
+<details>
+
+<summary>Right?</summary>
+
+We'll, we have a small problem here / corner case. It is due to the assumption we're making about the matrix with the features $X$.
+
+The above formula works only if $X^TX$ is **invertible**, i.e. has full rank / contains only independent columns.
+
+</details>
+
+<details>
+
+<summary>Hmm - ok, but what if it's not?</summary>
+
+We have several options here, the first of which we should apply in every situation:
+
+1. Remove the collinear features. This would allows us to invert $X^TX$.
+2. Compute the pseudoinverse of $X$ and use it instead.
+
+I'd recommend to always be wary of the features we put into the model and never put collinear ones - that would mean we have redundant information which is irrelevant.
+
+If you're curious to learn how we can compute and use the pseudoinverse of $X$, check out [this Wikipedia article](https://en.wikipedia.org/wiki/Moore%E2%80%93Penrose_inverse) and [this phenomenal lecture](https://www.youtube.com/watch?v=ZUU57Q3CFOU).
+
+</details>
+
+## Modelling via regression
+
+Here are the actual first five rows:
+
+|  idx | pregnancies | glucose | diastolic | triceps | insulin | bmi  | dpf   | age | diabetes |
+| ---: | ----------- | ------- | --------- | ------- | ------- | ---- | ----- | --- | -------- |
+|    0 | 6           | 148     | 72        | 35      | 0       | 33.6 | 0.627 | 50  | 1        |
+|    1 | 1           | 85      | 66        | 29      | 0       | 26.6 | 0.351 | 31  | 0        |
+|    2 | 8           | 183     | 64        | 0       | 0       | 23.3 | 0.672 | 32  | 1        |
+|    3 | 1           | 89      | 66        | 23      | 94      | 28.1 | 0.167 | 21  | 0        |
+|    4 | 0           | 137     | 40        | 35      | 168     | 43.1 | 2.288 | 33  | 1        |
+
+<details>
+
+<summary>What is simple linear regression?</summary>
+
+Using one feature to predict the target:
+
+$$y = ax + b$$
+
+</details>
+
+<details>
+
+<summary>What would be an example of that type of regression with the given dataset?</summary>
+
+Using (**only** the) `insulin` levels to predict the blood glucose levels.
+
+</details>
+
+<details>
+
+<summary>What is multiple linear regression?</summary>
+
+Using at least two features to predict the target:
+
+$$y = a_1x_1 + a_2x_2 + a_3x_3 + \dots + a_nx_n + b$$
+
+</details>
+
+<details>
+
+<summary>What would be an example of that type of regression with the given dataset?</summary>
+
+Using `insulin` levels and the `diastolic` pressure to predict the blood glucose levels.
+
+</details>
+
+We need to decide which feature(s) to use.
+
+<details>
+
+<summary>How can we do it?</summary>
+
+Two options:
+
+- if we have experience in the field: we create the data audit file and based on it create **multiple hypothesis**. We then try them out and pick the features that lead to the model scoring highest on our metrics.
+- if we do not have experience in the field: we create the data audit file and discuss it with domain experts (medical personnel, consultants with medical knowledge, clients). They'd guide us in what features make sense and which would end-up introducing more noise.
+
+</details>
+
+Let's say that we talk with internal consultants and they advise us to check whether there's any relationship between between blood glucose levels and body mass index. We plot them using a scatter plot:
+
+![w03_bmi_bg_plot.png](./assets/w03_bmi_bg_plot.png "w03_bmi_bg_plot.png")
+
+We can see that, generally, as body mass index increases, blood glucose levels also tend to increase. This is great - we can use this feature to create our model.
+
+### Data Preparation
+
+To do simple linear regression we slice out the column `bmi` of `X` and use the `[[]]` syntax so that the result is a dataframe (i.e. two-dimensional array) which `scikit-learn` requires when fitting models.
+
+```python
+X_bmi = X[['bmi']]
+print(X_bmi.shape, y.shape)
+```
+
+```console
+(752, 1) (752,)
+```
+
+### Modelling
+
+Now we're going to fit a regression model to our data.
+
+We're going to use the model `LinearRegression`. It fits a straight line through our data.
+
+```python
+from sklearn.linear_model import LinearRegression
+
+reg = LinearRegression()
+reg.fit(X_bmi, y)
+
+predictions = reg.predict(X_bmi)
+```
+
+## Model evaluation
+
+### Visually
+
+The most basic form of evaluation is the visual one:
+
+```python
+plt.scatter(X_bmi, y) # plot the true target values
+plt.plot(X_bmi, predictions) # plot the predicted target values
+plt.ylabel('Blood Glucose (mg/dl)')
+plt.xlabel('Body Mass Index')
+plt.show()
+```
+
+![w03_linear_reg_predictions_plot.png](./assets/w03_linear_reg_predictions_plot.png "w03_linear_reg_predictions_plot.png")
+
+The black line represents the linear regression model's fit of blood glucose values against body mass index, which appears to have a weak-to-moderate positive correlation.
+
+<details>
+
+<summary>What is the baseline model in regression tasks?</summary>
+
+The model that always predicts the mean target value in the training data.
+
+</details>
+
+### Using a metric
+
+The default metric for linear regression is $R^2$.
+
+It represents the proportion of variance (of $y$) that has been explained by the independent variables in the model.
+
+If $\hat{y}_i$ is the predicted value of the $i$-th sample and $y_i$ is the corresponding true value for total $n$ samples, the estimated $R^2$ is defined as:
+
+$$R^2(y, \hat{y}) = 1 - \frac{\sum_{i=1}^{n} (y_i - \hat{y}_i)^2}{\sum_{i=1}^{n} (y_i - \bar{y})^2}$$
+
+where $\bar{y} = \frac{1}{n} \sum_{i=1}^{n} y_i$ and $\sum_{i=1}^{n} (y_i - \hat{y}_i)^2 = \sum_{i=1}^{n} \epsilon_i^2$.
+
+Best possible score is $1.0$ and **it can be negative** (because the model can be arbitrarily worse).
+
+Here are two plots visualizing high and low R-squared respectively:
+
+![w03_r_sq.png](./assets/w03_r_sq.png "w03_r_sq.png")
+
+To compute $R^2$ in `scikit-learn`, we can call the `.score` method of a linear regression class passing test features and targets. Let's say that for our task we get this:
+
+```python
+reg_all.score(X_test, y_test)
+```
+
+```console
+0.356302876407827
+```
+
+<details>
+
+<summary>Is this a good result?</summary>
+
+No. Here the features only explain about 35% of blood glucose level variance.
+
+</details>
+
+<details>
+
+<summary>What would be the score of the baseline model on the training set?</summary>
+
+$0$, because it'll just predict the mean of the target.
+
+$$R^2(y, \hat{y}) = 1 - \frac{\sum_{i=1}^{n} (y_i - \hat{y}_i)^2}{\sum_{i=1}^{n} (y_i - \bar{y})^2} = 1 - \frac{\sum_{i=1}^{n} (y_i - \bar{y})^2}{\sum_{i=1}^{n} (y_i - \bar{y})^2} = 1 - 1 = 0$$
+
+> **Note**: we would still need to evaluate the baseline model on the test set, as the training and test set needn't have the same value for the mean.
+
+</details>
+
+#### Adjusted $R^2$ ($R_{adj}^2$)
+
+Using $R^2$ could have downsides in some situations. In today's tasks you'll investigate what they are and how the extension $R_{adj}^2$ can help.
+
+### Using a loss function
+
+Another way to assess a regression model's performance is to take the mean of the residual sum of squares. This is known as the **mean squared error**, or (`MSE`).
+
+> **Note**: `error` function = `loss` function = `cost` function.
+
+$$MSE = \frac{1}{n} \sum (y_i - \hat{y_i})^2$$
+
+`MSE` is measured in units of our target variable, squared. For example, if a model is predicting a dollar value, `MSE` will be in **dollars squared**.
+
+This is not very easy to interpret. To convert to dollars, we can take the **square root** of `MSE`, known as the **root mean squared error**, or `RMSE`.
+
+$$RMSE = \sqrt{MSE}$$
+
+`RMSE` has the benefit of being in the same unit as the target variable.
+
+To calculate the `RMSE` in `scikit-learn`, we can use the `root_mean_squared_error` function in the `sklearn.metrics` module.
+
+<details>
+
+<summary>What's the main difference then between metrics and loss functions?</summary>
+
+- Metrics are maximized.
+- Loss functions are minimized.
+
+</details>
