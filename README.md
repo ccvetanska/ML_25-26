@@ -21,7 +21,7 @@ Please follow the instructions in one of the following two folders:
 1. ✅ 06.10, Monday, 7:15 pm, 013
 2. ✅ 13.10, Monday, 7:15 pm, 013
 3. ✅ 20.10, Monday, 7:15 pm, 013
-4. 27.10, Monday, 7:15 pm, 013
+4. ✅ 27.10, Monday, 7:15 pm, 013
 5. 03.11, Monday, 7:15 pm, 013
 6. **04.11, Tuesday, 7:15 pm, 013**
 7. 10.11, Monday, 7:15 pm, 013

@@ -80,6 +80,34 @@
     - [Using a metric](#using-a-metric)
       - [Adjusted $R^2$ ($R\_{adj}^2$)](#adjusted-r2-r_adj2)
     - [Using a loss function](#using-a-loss-function)
+- [Week 04 - Regularized Regression, Logistic Regression, Cross Validation](#week-04---regularized-regression-logistic-regression-cross-validation)
+  - [Logistic Regression](#logistic-regression)
+    - [Binary classification](#binary-classification)
+    - [Model fitting](#model-fitting)
+    - [Multiclass classification](#multiclass-classification)
+    - [Logistic regression in `scikit-learn`](#logistic-regression-in-scikit-learn)
+  - [Regularized Regression](#regularized-regression)
+    - [Regularization](#regularization)
+    - [Ridge Regression](#ridge-regression)
+    - [Lasso Regression](#lasso-regression)
+    - [Feature Importance](#feature-importance)
+    - [Lasso Regression and Feature Importance](#lasso-regression-and-feature-importance)
+  - [Classification Metrics](#classification-metrics)
+    - [A problem with using `accuracy` always](#a-problem-with-using-accuracy-always)
+    - [Confusion matrix in scikit-learn](#confusion-matrix-in-scikit-learn)
+  - [The receiver operating characteristic curve (`ROC` curve)](#the-receiver-operating-characteristic-curve-roc-curve)
+    - [In `scikit-learn`](#in-scikit-learn)
+    - [The Area Under the Curve (`AUC`)](#the-area-under-the-curve-auc)
+    - [In `scikit-learn`](#in-scikit-learn-1)
+  - [Cross Validation](#cross-validation)
+  - [Hyperparameter optimization/tuning](#hyperparameter-optimizationtuning)
+    - [Hyperparameters](#hyperparameters)
+    - [Introduction](#introduction-2)
+    - [Grid search cross-validation](#grid-search-cross-validation)
+    - [In `scikit-learn`](#in-scikit-learn-2)
+    - [Randomized search cross-validation](#randomized-search-cross-validation)
+      - [Benefits](#benefits)
+    - [Evaluating on the test set](#evaluating-on-the-test-set)
 
 # Week 01 - Numpy, Pandas, Matplotlib & Seaborn
 
@@ -3134,5 +3162,1262 @@ To calculate the `RMSE` in `scikit-learn`, we can use the `root_mean_squared_err
 
 - Metrics are maximized.
 - Loss functions are minimized.
+
+</details>
+
+# Week 04 - Regularized Regression, Logistic Regression, Cross Validation
+
+## Logistic Regression
+
+### Binary classification
+
+Let's say we want to predict whether a patient has diabetes. During our data audit we spot the following relationship:
+
+![w04_log_reg_1.png](./assets/w04_log_reg_1.png "w04_log_reg_1.png")
+
+<details>
+
+<summary>What are some examples of a working decision boundary for this task?</summary>
+
+There are many lines that we could use:
+
+![w04_log_reg_3.png](./assets/w04_log_reg_3.png "w04_log_reg_3.png")
+
+</details>
+
+<details>
+
+<summary>What model can we use from the ones we already know about that can solve this task?</summary>
+
+- We could use KNN, but it is prone to overfitting if there are outliers:
+
+![w04_log_reg_2.png](./assets/w04_log_reg_2.png "w04_log_reg_2.png")
+
+- We could also use linear regression, but if there are outliers it is going to get very skewed as well:
+
+If the dataset is perfectly separable, maybe we could use a threshold:
+
+![w04_log_reg_5.png](./assets/w04_log_reg_5.png "w04_log_reg_5.png")
+
+In this case we could say:
+
+If $\beta^{T}x >= 0.5$, predict $y = 1$.
+If $\beta^{T}x < 0.5$, predict $y = 0$.
+
+But that solution would break if there's a single outlier:
+
+![w04_log_reg_4.png](./assets/w04_log_reg_4.png "w04_log_reg_4.png")
+
+</details>
+
+<details>
+
+<summary>What other problem does linear regression have in relation to the y-axis?</summary>
+
+It can output any value, actually - much greater than 1 and much less than 0.
+
+</details>
+
+<details>
+
+<summary>So what should be output range of our desired model?</summary>
+
+Ideally, we should get a confidence score / a probability. It spans the range $[0, 1]$ and would be very easy for us to threshold at $0.5$.
+
+</details>
+
+Well, this is that Logistic regression does. Note that despite its name, **it is a *classification* algorithm**, not a regression one.
+
+$$0 <= h_{\beta}(x) <= 1$$
+
+Hmm - so then we only have to define what $h_{\beta}(x)$ is.
+
+<details>
+
+<summary>Do you know what "h" is for logistic regression?</summary>
+
+It's actually pretty close to the one for linear regression.
+
+For linear regression we have: $\beta^{T}x$.
+For logistic regression we have: $\sigma(\beta^{T}x)$, where $\sigma$ is the [sigmoid function](https://en.wikipedia.org/wiki/Sigmoid_function) also known as the logistic function:
+
+$$\sigma(\beta^{T}x) = \frac{1}{1 + e^{-\beta^{T}x}}$$
+
+![w04_log_reg_6.png](./assets/w04_log_reg_6.png "w04_log_reg_6.png")
+
+</details>
+
+<details>
+
+<summary>Seeing the graph, can you explain how the output of this model should be interpreted?</summary>
+
+It is the estimated probability that $y = 1$ on input features $x$:
+
+$$h_{\beta}(x) = P(y = 1 | x; \beta)$$
+
+> **Note 1:** In `sklearn` and in our implementation this logic will be defined in a method `predict_proba`.
+> **Note 2:** Typically, we have another method `predict` that does the threshold, typically at $0.5$, i.e. predict $y = 1$ if $h_{\beta}(x) >= 0.5$, and $y = 0$ otherwise.
+
+</details>
+
+<details>
+
+<summary>What's your intuition - can logistic regression produce non-linear decision boundary?</summary>
+
+It can! Unlike in linear regression, we can create a decision boundary in any shape that can be described by a polynomial:
+
+Suppose that $h_{\beta}(x) = \sigma(\beta_0 + \beta_1x_1 + \beta_2x_2 + \beta_3x_{1}^{2} + \beta_4x_{2}^{2})$ and we get the following estimated parameters:
+
+$$\beta_0=-1, \beta_1=0, \beta_2=0, \beta_3=1, \beta_4=1$$
+
+> **Note:** We have correlated features here. This will not stop us from getting our parameters $\beta$, but like we said earlier - it is not encouraged, as they do not add predictive value.
+
+Those coefficients actually describe a non-linear boundary ($x_{1}^{2} + x_{2}^{2} = 1$):
+
+![w04_log_reg_7.png](./assets/w04_log_reg_7.png "w04_log_reg_7.png")
+
+</details>
+
+### Model fitting
+
+Ok, great! We have a powerful model that we can use to create linear and non-linear decision boundaries. The question that remains is: *How do we train it? / How do we obtain the values for the coefficients $\beta$?*. Let's answer it in this section.
+
+<details>
+
+<summary>Last time we showed how we can "train" a linear regression model - what was the goal of this training that allowed us to obtain the best parameters?</summary>
+
+We wanted to reduce the error rate, i.e. minimize the loss of the model which was expressed by the sum of the squared differences between predicted and actual values:
+
+$$J(\beta) = \Sigma(y - \hat{y})^2$$
+
+</details>
+
+The strategy of logistic regression is to **maximize the likelihood of observing our target values**. It postulates that the best model parameters are the ones via which we can do $\beta^{T}x$ and get the target values.
+
+<details>
+
+<summary>Do you know what the formal name of this process that finds such coefficients is?</summary>
+
+[Maximum likelihood estimation](https://en.wikipedia.org/wiki/Maximum_likelihood_estimation)!
+
+From Wikipedia:
+
+"... a method of estimating the parameters of an assumed probability distribution, given some observed data. This is achieved by maximizing a likelihood function so that, under the assumed statistical model, the observed data is most probable."
+
+</details>
+
+Perfect - let's then see whether we have these ingredients.
+
+<details>
+
+<summary>Do we have observed data?</summary>
+
+Yes, this is any dataset for classification purposes.
+
+</details>
+
+<details>
+
+<summary>Do we know what our model is?</summary>
+
+Yes, it is:
+
+$$h_{\beta}(x) = P(y = 1 | x; \beta) = \sigma(\beta^{T}x) = \frac{1}{1 + e^{-\beta^{T}x}}$$
+
+</details>
+
+<details>
+
+<summary>Do we know the probability distribution of our target variable?</summary>
+
+In the context of a single observation, it follows the [Bernoulli distribution](https://en.wikipedia.org/wiki/Bernoulli_distribution) - the distribution for 0s and 1s:
+
+$$y_i \sim Ber(\sigma(\beta^{T}x))$$
+
+</details>
+
+<details>
+
+<summary>Ok, what was P(y = 1)?</summary>
+
+$$P(y = 1) = \sigma(\beta^{T}x) = h_{\beta}(x)$$
+
+</details>
+
+<details>
+
+<summary>What is P(y = 0)?</summary>
+
+$$P(y = 0) = 1 - \sigma(\beta^{T}x) = 1 - h_{\beta}(x)$$
+
+</details>
+
+<details>
+
+<summary>How can we combine the above two equations into one that can show us the probability for either of the two classes for a single observation?</summary>
+
+$$P(y_i) = h_{\beta}(x_i)^{y_i} (1 - h_{\beta}(x_i))^{1 - y_i}$$
+
+</details>
+
+Awesome!
+
+<details>
+
+<summary>What is the general form of the likelihood function?</summary>
+
+$$L(\beta) = P(Y | X; \beta)$$
+
+where $Y$ are our target labels and $X$ are the inputs.
+
+</details>
+
+<details>
+
+<summary>Knowing that Y has a Bernoulli distribution, how can we express the likelihood function?</summary>
+
+Our ($m$) observations are (assumed to be) independent, so this probability is equal to the product of the individual probabilities:
+
+$$L(\beta) = P(Y | X; \beta) = \prod_{i=1}^{m} P(y_i) = \prod_{i=1}^{m} h_{\beta}(x_i)^{y_i} (1 - h_{\beta}(x_i))^{1 - y_i}$$
+
+</details>
+
+<details>
+
+<summary>We're dealing with products of probabilities here - what's a problem that can occur?</summary>
+
+It wouldn't be numerically stable for very small numbers (which we'll get from all those multiplications).
+
+</details>
+
+<details>
+
+<summary>How can we deal with this?</summary>
+
+We can instead maximize the **log likelihood** to get a sum of probabilities:
+
+$$L(\beta) = \sum_{i=1}^{m} \left( \log h_{\beta}(x_i)^{y_i} + \log (1 - h_{\beta}(x_i))^{1 - y_i} \right)$$
+
+After moving the powers to become a multiplier, we get:
+
+$$L(\beta) = \sum_{i=1}^{m} \left( {y_i} \log h_{\beta}(x_i) + (1 - y_i) \log (1 - h_{\beta}(x_i)) \right)$$
+
+</details>
+
+Ok, perfect! So, now we just have to maximize this function and we'll get our parameters $\beta$.
+
+<details>
+
+<summary>But wait a minute - last time we minimized a function (the loss function), why are we maximizing now?</summary>
+
+That's a fair question! We needn't maximize, actually.
+
+</details>
+
+<details>
+
+<summary>How can we still find the best parameters, but without maximizing?</summary>
+
+We can **minimize** the **negative log likelihood** instead!
+
+$$J(\beta) = - \sum_{i=1}^{m} \left( {y_i} \log h_{\beta}(x_i) + (1 - y_i) \log (1 - h_{\beta}(x_i)) \right)$$
+
+Further more we can scale this function, like we did with linear regression and the **mean** squared error to get the average loss per observation:
+
+$$J(\beta) = -\frac{1}{m} \sum_{i=1}^{m} \left( {y_i} \log h_{\beta}(x_i) + (1 - y_i) \log (1 - h_{\beta}(x_i)) \right)$$
+
+</details>
+
+And this right here that we derived is referred to as the **binary cross-entropy** (or **log loss**) is a **loss** function! It is a special case of [the cross-entropy function](https://en.wikipedia.org/wiki/Cross-entropy) ($k = 2$):
+
+$$L_{\log}(Y, \hat{P}) = -\log \operatorname{Pr}(Y|\hat{P}) = - \frac{1}{M} \sum_{i=0}^{M-1} \sum_{k=0}^{K-1} y_{i,k} \log \hat{p}_{i,k}$$
+
+Great! Let's recap:
+
+- Loss function for linear regression: $\frac{1}{m}\sum_{i=1}^{m}(y_i-\hat{y_i})^2$
+- Loss function for logistic regression: $-\frac{1}{m} \sum_{i=1}^{m} \left( {y_i} \log h_{\beta}(x_i) + (1 - y_i) \log (1 - h_{\beta}(x_i)) \right)$
+
+<details>
+
+<summary>What would be our next steps?</summary>
+
+1. Compute the first derivative of the loss.
+2. Set it to $0$.
+3. Solve.
+
+</details>
+
+<details>
+
+<summary>What do we get from step 1?</summary>
+
+The derivative of the log is:
+
+$$\frac{d}{dx} \log(g(x)) = \frac{g'(x)}{g(x)}$$
+
+so we get:
+
+$$
+\frac{\partial J(\beta)}{\partial \beta} = \frac{y}{h_{\beta}(x)} \frac{\partial h_{\beta}(x)}{\partial \beta} + \frac{1 - y}{1 - h_{\beta}(x)} (- \frac{\partial h_{\beta}(x)}{\partial \beta})
+$$
+
+> **Note:** Let's ignore the leading negative sign for now.
+
+What's left is to calculate $\frac{\partial h_{\beta}(x)}{\partial \beta} = \frac{\partial \sigma(\beta^{T}x)}{\partial \beta}$:
+
+$$\frac{\partial h_{\beta}(x)}{\partial \beta} = \frac{\partial h_{\beta}(x)}{\partial \beta^{T}x} * \frac{\partial \beta^{T}x}{\partial \beta}$$
+
+We can show that:
+
+$$\frac{\partial \beta^{T}x}{\partial \beta} = x$$
+
+and with the derivative of the sigmoid (which is mathematically convenient):
+
+$$\frac{\partial h_{\beta}(x)}{\partial \beta^{T}x} = h_{\beta}(x) (1 - h_{\beta}(x))$$
+
+we get:
+
+$$\frac{\partial h_{\beta}(x)}{\partial \beta} = h_{\beta}(x) (1 - h_{\beta}(x))x$$
+
+Substituting above:
+
+$$
+\frac{\partial J(\beta)}{\partial \beta} = \frac{y}{h_{\beta}(x)} h_{\beta}(x) (1 - h_{\beta}(x))x - \frac{1 - y}{1 - h_{\beta}(x)} h_{\beta}(x) (1 - h_{\beta}(x))x
+$$
+
+We can cancel some of the elements:
+
+$$
+\frac{\partial J(\beta)}{\partial \beta} = y (1 - h_{\beta}(x))x - (1 - y) h_{\beta}(x) x = yx - yx h_{\beta}(x) - h_{\beta}(x)x + h_{\beta}(x) x y = yx - h_{\beta}(x)x
+$$
+
+And we get:
+
+$$
+\frac{\partial J(\beta)}{\partial \beta} = (y - h_{\beta}(x))x = (y - \hat{y})x
+$$
+
+After taking into account the negative sign we ignored in the beginning, we obtain the final result:
+
+$$
+\frac{\partial J(\beta)}{\partial \beta} = (\hat{y} - y)x
+$$
+
+</details>
+
+And now we have to set to $0$ and solve.
+
+Except ...
+
+We have a little bit of a problem - there's no closed-form solution, i.e. there is no exact formula that we can obtain. So, we kinda get into the situation with the invertible matrices last time.
+
+<details>
+
+<summary>From the approaches we mentioned last time, which one do you think we'll use?</summary>
+
+We have several options now, but all of them are based on **approximation**:
+
+- fancy algorithms: `sklearn` comes with them - `lbfgs`, `liblinear`, `newton-cg`, `newton-cholesky`, `sag`, `saga`, etc.
+- gradient descent.
+
+Let's go with gradient descent.
+
+</details>
+
+<details>
+
+<summary>Do you know what its pseudocode looks like?</summary>
+
+betas = ... initialize with small values around 0... <- this is our starting solution
+
+for i in range(max_iter):
+  betas = betas - learning_rate * dJ(beta)
+
+</details>
+
+To monitor the algorithm for converging, you could output the (training) loss at every step.
+
+<details>
+
+<summary>Why - what value would it have?</summary>
+
+It should decrease if we're training properly.
+
+</details>
+
+And that's it! We'll probably not be able to obtain zero loss - again, this is ok so long as our approximation is the best we can do.
+
+### Multiclass classification
+
+<details>
+
+<summary>Do you know how we can solve this?</summary>
+
+We have two main strategies to choose from:
+
+- One-vs-rest logistic regression.
+- Multinomial logistic regression.
+
+</details>
+
+<details>
+
+<summary>Do you know how the first one works?</summary>
+
+We create $N$ models, each being an expert for its own class. For a new observation we take the prediction of the most confident model.
+
+</details>
+
+<details>
+
+<summary>Do you know how the second one works?</summary>
+
+We create a model that outputs $N$ probability values. This is more akin to neural networks (for which we'll talking about later in the course), so we'll skip it for now.
+
+</details>
+
+In this week's implementation we'll use the one-vs-rest (`ovr`) strategy.
+
+To convert the raw output values, we'll use the softmax function:
+
+$$softmax(z_i) = \frac{e^{z_{i}}}{\sum_{j=1}^K e^{z_{j}}} \ \ \ for\ i=1,2,\dots,K$$
+
+### Logistic regression in `scikit-learn`
+
+<details>
+
+<summary>Have you heard about the iris dataset?</summary>
+
+- The [`iris` dataset](https://scikit-learn.org/stable/auto_examples/datasets/plot_iris_dataset.html) is a collection of measurements of many [iris plants](https://en.wikipedia.org/wiki/Iris_flower_data_set).
+- Three species of iris:
+  - *setosa*;
+  - *versicolor*;
+  - *virginica*.
+- Features: petal length, petal width, sepal length, sepal width.
+
+Iris setosa:
+
+![w05_setosa.png](./assets/w05_setosa.png "w05_setosa.png")
+
+Iris versicolor:
+
+![w05_versicolor.png](./assets/w05_versicolor.png "w05_versicolor.png")
+
+Iris virginica:
+
+![w05_virginica.png](./assets/w05_virginica.png "w05_virginica.png")
+
+</details>
+
+In scikit-learn logistic regression is implemented in the [`sklearn.linear_model`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html#logisticregression) module:
+
+```python
+from sklearn.datasets import load_iris
+from sklearn.linear_model import LogisticRegression
+X, y = load_iris(return_X_y=True)
+print(f'Possible classes: {set(y)}')
+clf = LogisticRegression(random_state=0).fit(X, y)
+clf.predict(X[:2, :])
+```
+
+```console
+Possible classes: {0, 1, 2}
+array([0, 0])
+```
+
+> **Note:** The hyperparameter `C` is the inverse of the regularization strength - larger `C` means less regularization and smaller `C` means more regularization.
+
+```python
+clf.predict_proba(X[:2]) # probabilities of each instance belonging to each of the three classes
+```
+
+```console
+array([[9.81780846e-01, 1.82191393e-02, 1.44184120e-08],
+       [9.71698953e-01, 2.83010167e-02, 3.01417036e-08]])
+```
+
+```python
+clf.predict_proba(X[:2])[:, 2] # probabilities of each instance belonging to the third class only
+```
+
+```console
+array([1.44184120e-08, 3.01417036e-08])
+```
+
+```python
+clf.score(X, y) # returns the accuracy
+```
+
+```console
+0.97
+```
+
+## Regularized Regression
+
+### Regularization
+
+<details>
+
+<summary>Have you heard of regularization?</summary>
+
+Regularization is a technique used to avoid overfitting. It can be applied in any task - classification or regression.
+
+![example](https://www.mathworks.com/discovery/overfitting/_jcr_content/mainParsys/image.adapt.full.medium.svg/1718273106637.svg)
+
+Its main idea is to reduce the size / values of model parameters / coefficients as large coefficients lead to overfitting.
+
+Linear regression models minimize a loss function to choose a coefficient - $a$, for each feature, and an intercept - $b$. When we apply regularization to them, we "extend" the loss function, adding one more variable to the sum, that grows in value as coefficients grow.
+
+</details>
+
+### Ridge Regression
+
+The first type of regularized regression that we'll look at is called `Ridge`. With `Ridge`, we use the `Ordinary Least Squares` loss function plus the squared value of each coefficient, multiplied by a constant - `alpha`.
+
+$$J = \sum_{i=1}^n(y_i - \hat{y_i})^2 + \alpha \sum_{i=1}^na_i^2$$
+
+> **Note:** We usually do not apply regularization to the bias term.
+
+So, when minimizing the loss function, models are penalized both *for creating a line that's far from the ideal one* **and** *for coefficients with large positive or negative values*.
+
+When using `Ridge`, we need to choose the `alpha` value in order to fit and predict.
+
+- we can select the `alpha` for which our model performs best;
+- picking alpha for `Ridge` is similar to picking `k` in `KNN`;
+- multiple experiments with different values required - choose local minimum; hope it is the global one.
+
+`Alpha` controls model complexity. When alpha equals `0`, we are performing `OLS`, where large coefficients are not penalized and overfitting *may* occur. A high alpha means that large coefficients are significantly penalized, which *can* lead to underfitting (we're making our model dumber).
+
+`Scikit-learn` comes with a ready-to-use class for Ridge regression - check it out [here](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Ridge.html#ridge).
+
+The geometric interpretation is similar to the one we showed last time with the only change being that now the projection is not orthogonal since we're not allowed to use the full scale of the feature vectors:
+
+![w04_geom_interpret_ridge.png](./assets/w04_geom_interpret_ridge.png "w04_geom_interpret_ridge.png")
+
+It can be shown that the best parameters for ridge regression can be obtained if we solve the following equation:
+
+$$
+\hat{\beta}_{ridge} = (X^{\top} X + \lambda D)^{-1} X^{\top} y, \quad
+D = \text{diag}(0, 1, 1, \dots, 1)
+$$
+
+> **Note:** Adding $\lambda D$ **ensures the matrix is invertible** (even if $X^{\top} X$ is singular).
+
+### Lasso Regression
+
+There is another type of regularized regression called Lasso, where our loss function is the `OLS` loss function plus the absolute value of each coefficient multiplied by some constant - `alpha`:
+
+$$J = \sum_{i=1}^n(y_i - \hat{y_i})^2 + \alpha \sum_{i=1}^n|a_i|$$
+
+`Scikit-learn` also comes with a ready-to-use class for Lasso regression - check it out [here](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.Lasso.html#lasso).
+
+### Feature Importance
+
+Feature importance is the amount of added value that a feature provides to a model when that model is trying to predict the target variable. The more important a feature is, the better it is to be part of a model.
+
+Assessing the feature importance of all features can be used to perform **feature selection** - choosing which features will be part of the final model.
+
+### Lasso Regression and Feature Importance
+
+Lasso regression can actually be used to assess feature importance. This is because **it shrinks the coefficients of less important features to `0`**. The features whose coefficients are not shrunk to `0` are, essentially, selected by the lasso algorithm - when summing them up, **the coefficients act as weights**.
+
+Here's how this can be done in practice:
+
+```python
+lasso = Lasso(alpha=0.1)
+lasso_coef = lasso.fit(X, y).coef_
+plt.bar(columns, lasso_coef)
+plt.xticks(rotation=45)
+plt.show()
+```
+
+![w03_lasso_coefs_class.png](./assets/w03_lasso_coefs_class.png "w03_lasso_coefs_class.png")
+
+We can see that the most important predictor for our target variable, `blood glucose levels`, is the binary value for whether an individual has `diabetes` or not! This is not surprising, but is a great sanity check.
+
+Benefits:
+
+- allows us to communicate results to non-technical audiences (stakeholders, clients, management);
+- helps us eliminate non-important features when we have too many;
+- identifies which factors are important predictors for various physical phenomena.
+
+For Lasso there is no simple matrix inverse like Ridge. We'll have to use gradient descent again.
+
+The function we're minimizing is:
+
+$$
+\hat{\beta}_{lasso} = \arg \min_{\beta} \Bigg( \| y - X\beta \|^2 + \lambda \sum_{j=1}^{p} |\beta_j| \Bigg), \quad \text{with } \beta_0 \text{ (bias) not regularized.}
+$$
+
+So our update step would be:
+
+$$
+\beta_j^{(t+1)} = \beta_j^{(t)} - \alpha \Bigg( \frac{1}{m} \sum_{i=1}^m (h_\beta(x_i) - y_i) x_{ij} + \lambda \cdot \text{sign}(\beta_j^{(t)}) \Bigg)
+$$
+
+Since the modulo operator is not differentiable at $0$, we'll have to use the sign of the coefficient:
+
+$$
+\text{sign}(\beta) =
+\begin{cases}
++1 & \text{if } \beta > 0 \\
+-1 & \text{if } \beta < 0 \\
+\text{any value in } [-1, 1] & \text{if } \beta = 0 & \text{(we'll choose 0 to create the sparcity)}
+\end{cases}
+$$
+
+## Classification Metrics
+
+### A problem with using `accuracy` always
+
+**Situation:**
+
+A bank contacts our company and asks for a model that can predict whether a bank transaction is fraudulent or not.
+
+Keep in mind that in practice, 99% of transactions are legitimate and only 1% are fraudulent.
+
+> **Definition:** The situation where classes are not equally represented in the data is called ***class imbalance***.
+
+**Problem:**
+
+<details>
+
+<summary>Do you see any problems with using accuracy as the primary metric here?</summary>
+
+The accuracy of a model that predicts every transaction as legitimate is `99%`.
+
+</details>
+
+**Solution:**
+
+<details>
+
+<summary>How do we solve this?</summary>
+
+We have to use other metrics that put focus on the **per-class** performance.
+
+</details>
+
+<details>
+
+<summary>What can we measure then?</summary>
+
+We have to count how the model treats every observation and define the performance of the model based on the number of times that an observation:
+
+- is positive and the model predicts it to be negative;
+- or is negative and the model predicts it to be positive;
+- or the model predicts its class correctly.
+
+We can store those counts in a table:
+
+![w03_conf_matrix.png](./assets/w03_conf_matrix.png "w03_conf_matrix.png")
+
+> **Definition:** A **confusion matrix** is a table that is used to define the performance of a classification algorithm.
+
+- Across the top are the predicted labels, and down the side are the actual labels.
+- Usually, the class of interest is called the **positive class**. As we aim to detect fraud, **the positive class is an *illegitimate* transaction**.
+  - The **true positives** are the number of fraudulent transactions correctly labeled;
+  - The **true negatives** are the number of legitimate transactions correctly labeled;
+  - The **false negatives** are the number of legitimate transactions incorrectly labeled;
+  - And the **false positives** are the number of transactions incorrectly labeled as fraudulent.
+
+</details>
+
+**Benefit:**
+
+<details>
+
+<summary>We can retrieve the accuracy. How?</summary>
+
+It's the sum of true predictions divided by the total sum of the matrix.
+
+![w03_cm_acc.png](./assets/w03_cm_acc.png "w03_cm_acc.png")
+
+</details>
+
+<details>
+
+<summary>Do you know what precision is?</summary>
+
+`precision` is the number of true positives divided by the sum of all positive predictions.
+
+- also called the `positive predictive value`;
+- in our case, this is the number of correctly labeled fraudulent transactions divided by the total number of transactions classified as fraudulent:
+
+![w03_cm_precision.png](./assets/w03_cm_precision.png "w03_cm_precision.png")
+
+- **high precision** means having a **lower false positive rate**. For our classifier, it means predicting most fraudulent transactions correctly.
+
+$$FPR = \frac{FP}{FP + TN}$$
+
+</details>
+
+<details>
+
+<summary>Do you know what recall is?</summary>
+
+`recall` is the number of true positives divided by the sum of true positives and false negatives
+
+- also called `sensitivity`;
+
+![w03_cm_recall.png](./assets/w03_cm_recall.png "w03_cm_recall.png")
+
+- **high recall** reflects a **lower false positive rate**. For our classifier, this translates to fewer legitimate transactions being classified as fraudulent.
+
+$$FNR = \frac{FN}{TP + FN}$$
+
+Here is a helpful table that can serve as another example:
+
+![w03_example_metrics_2.png](./assets/w03_example_metrics_2.png "w03_example_metrics_2.png")
+
+</details>
+
+<details>
+
+<summary>Do you know what the f1-score is?</summary>
+
+The `F1-score` is the harmonic mean of precision and recall.
+
+- gives equal weight to precision and recall -> it factors in both the number of errors made by the model and the type of errors;
+- favors models with similar precision and recall;
+- useful when we are seeking a model which performs reasonably well across both metrics.
+
+![w03_cm_f1.png](./assets/w03_cm_f1.png "w03_cm_f1.png")
+
+Another interpretation of the link between precision and recall:
+
+![w03_prec_rec.png](./assets/w03_prec_rec.png "w03_prec_rec.png")
+
+Why is the harmonic mean used? Since both precision and recall are rates (ratios) between `0` and `1`, the harmonic mean helps balance these two metrics by considering their reciprocals. This ensures that a low value in either one has a significant impact on the overall `F1` score, thus incentivizing a balance between the two.
+
+</details>
+
+### Confusion matrix in scikit-learn
+
+We can use the [`confusion_matrix`](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.confusion_matrix.html#confusion-matrix) function in `sklearn.metrics`:
+
+```python
+from sklearn.metrics import confusion_matrix
+y_true = [2, 0, 2, 2, 0, 1]
+y_pred = [0, 0, 2, 2, 0, 2]
+confusion_matrix(y_true, y_pred)
+```
+
+```console
+array([[2, 0, 0],
+       [0, 0, 1],
+       [1, 0, 2]])
+```
+
+We can also use the `from_predictions` static function of the [`ConfusionMatrixDisplay`](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.ConfusionMatrixDisplay.html#confusionmatrixdisplay) class, also in `sklearn.metrics` to plot the matrix:
+
+```python
+import matplotlib.pyplot as plt
+from sklearn.metrics import ConfusionMatrixDisplay
+y_true = [2, 0, 2, 2, 0, 1]
+y_pred = [0, 0, 2, 2, 0, 2]
+ConfusionMatrixDisplay.from_predictions(y_true, y_pred)
+plt.tight_layout()
+plt.show()
+```
+
+![w03_cm_plot.png](./assets/w03_cm_plot.png "w03_cm_plot.png")
+
+We can get the discussed metrics from the confusion matrix, by calling the [`classification_report`](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.classification_report.html#classification-report) function in `sklearn.metrics`:
+
+```python
+from sklearn.metrics import classification_report
+y_true = [0, 1, 2, 2, 2]
+y_pred = [0, 0, 2, 2, 1]
+target_names = ['class 0', 'class 1', 'class 2']
+print(classification_report(y_true, y_pred, target_names=target_names))
+```
+
+```console
+              precision    recall  f1-score   support
+
+     class 0       0.50      1.00      0.67         1
+     class 1       0.00      0.00      0.00         1
+     class 2       1.00      0.67      0.80         3
+
+    accuracy                           0.60         5
+   macro avg       0.50      0.56      0.49         5
+weighted avg       0.70      0.60      0.61         5
+```
+
+```python
+y_pred = [1, 1, 0]
+y_true = [1, 1, 1]
+print(classification_report(y_true, y_pred, labels=[1, 2, 3]))
+```
+
+```console
+              precision    recall  f1-score   support
+
+           1       1.00      0.67      0.80         3
+           2       0.00      0.00      0.00         0
+           3       0.00      0.00      0.00         0
+
+   micro avg       1.00      0.67      0.80         3
+   macro avg       0.33      0.22      0.27         3
+weighted avg       1.00      0.67      0.80         3
+```
+
+`Support` represents the number of instances for each class within the true labels. If the column with `support` has different numbers, then we have class imbalance.
+
+- `macro average` = $\frac{F1_{class1} + F1_{class2} + F1_{class3}}{3}$
+- `weighted average` = $\frac{F1_{class1}*SUPPORT_{class1} + F1_{class2}*SUPPORT_{class2} + F1_{class3}*SUPPORT_{class3}}{3}$
+- `micro average` = $\frac{F1_{class1}*SUPPORT_{class1} + F1_{class2}*SUPPORT_{class2} + F1_{class3}*SUPPORT_{class3}}{SUPPORT_{class1} + SUPPORT_{class2} + SUPPORT_{class3}}$
+
+## The receiver operating characteristic curve (`ROC` curve)
+
+<details>
+
+<summary>Do you know what the ROC curve shows?</summary>
+
+> **Note:** Use the `ROC` curve only when doing ***binary* classification**.
+
+The default probability threshold for logistic regression in scikit-learn is `0.5`. What happens as we vary this threshold?
+
+We can use a receiver operating characteristic, or ROC curve, to visualize how different thresholds affect `true positive` and `false positive` rates.
+
+![w04_roc_example.png](./assets/w04_roc_example.png "w04_roc_example.png")
+
+The dotted line represents a random model - one that randomly guesses labels.
+
+When the threshold:
+
+- equals `0` (`p=0`), the model predicts `1` for all observations, meaning it will correctly predict all positive values, and incorrectly predict all negative values;
+- equals `1` (`p=1`), the model predicts `0` for all data, which means that both true and false positive rates are `0` (nothing gets predicted as positive).
+
+![w04_roc_edges.png](./assets/w04_roc_edges.png "w04_roc_edges.png")
+
+If we vary the threshold, we get a series of different false positive and true positive rates.
+
+![w04_roc_vary.png](./assets/w04_roc_vary.png "w04_roc_vary.png")
+
+A line plot of the thresholds helps to visualize the trend.
+
+![w04_roc_line.png](./assets/w04_roc_line.png "w04_roc_line.png")
+
+<details>
+
+<summary>What plot would be produced by the perfect model?</summary>
+
+One in which the line goes straight up and then right.
+
+![w04_perfect_roc.png](./assets/w04_perfect_roc.png "w04_perfect_roc.png")
+
+</details>
+
+</details>
+
+### In `scikit-learn`
+
+In scikit-learn the `roc_curve` is implemented in the `sklearn.metrics` module.
+
+```python
+import numpy as np
+from sklearn import metrics
+y = np.array([1, 1, 2, 2])
+scores = np.array([0.1, 0.4, 0.35, 0.8])
+fpr, tpr, thresholds = metrics.roc_curve(y, scores, pos_label=2)
+
+fpr
+```
+
+```console
+array([0. , 0. , 0.5, 0.5, 1. ])
+```
+
+```python
+tpr
+```
+
+```console
+array([0. , 0.5, 0.5, 1. , 1. ])
+```
+
+```python
+thresholds
+```
+
+```console
+array([ inf, 0.8 , 0.4 , 0.35, 0.1 ])
+```
+
+To plot the curve can create a `matplotlib` plot or use a built-in function.
+
+Using `matplotlib` would look like this:
+
+```python
+plt.plot([0, 1], [0, 1], 'k--') # to draw the dashed line
+plt.plot(fpr, tpr)
+plt.ylabel('True Positive Rate')
+plt.xlabel('False Positive Rate')
+plt.title('Logistic Regression ROC Curve')
+plt.show()
+```
+
+![w04_example_roc_matlotlib.png](./assets/w04_example_roc_matlotlib.png "w04_example_roc_matlotlib.png")
+
+We could also use the `from_predictions` function in the `RocCurveDisplay` class to create plots.
+
+```python
+import matplotlib.pyplot as plt
+from sklearn.metrics import RocCurveDisplay
+RocCurveDisplay.from_predictions(y, scores)
+plt.tight_layout()
+plt.show()
+```
+
+![w04_example_roc_display.png](./assets/w04_example_roc_display.png "w04_example_roc_display.png")
+
+<details>
+
+<summary>The above figures look great, but how do we quantify the model's performance based on them?</summary>
+
+### The Area Under the Curve (`AUC`)
+
+If we have a model with `true_positive_rate=1` and `false_positive_rate=0`, this would be the perfect model.
+
+Therefore, we calculate the area under the ROC curve, a **metric** known as `AUC`. Scores range from `0` to `1`, with `1` being ideal.
+
+In the below figure, the model scores `0.67`, which is `34%` better than a model making random guesses.
+
+![w04_example_roc_improvement.png](./assets/w04_example_roc_improvement.png "w04_example_roc_improvement.png")
+
+### In `scikit-learn`
+
+In scikit-learn the area under the curve can be calculated in two ways.
+
+Either by using the `RocCurveDisplay.from_predictions` function:
+
+![w04_example_roc_display_note.png](./assets/w04_example_roc_display_note.png "w04_example_roc_display_note.png")
+
+or by using the `roc_auc_score` function in the `sklearn.metrics` module:
+
+```python
+from sklearn.metrics import roc_auc_score
+print(roc_auc_score(y_test, y_pred_probs))
+```
+
+```console
+0.6700964152663693
+```
+
+</details>
+
+## Cross Validation
+
+Currently, we're using train-test split to compute model performance.
+
+<details>
+
+<summary>What are the potential downsides of using train-test split?</summary>
+
+1. Model performance is dependent on the way we split up the data: we may get different results if we do another split.
+2. The data points in the test set may have some peculiarities: the R-squared computed on it is not representative of the model's ability to generalize to unseen data.
+3. The points in the test set will never be used for training the model: we're missing out on potential benefits.
+
+</details>
+
+<details>
+
+<summary>Have you heard of the technique called cross-validation?</summary>
+
+It is a vital approach to evaluating a model. It maximizes the amount of data that is available to the model, as the model is not only trained but also tested on all of the available data.
+
+Here's a visual example of what cross-validation comprises of:
+
+![w03_cv_example1.png](./assets/w03_cv_example1.png "w03_cv_example1.png")
+
+We begin by splitting the dataset into `k` groups or folds - ex. `5`. Then we set aside the first fold as a test set, fit our model on the remaining four folds, predict on our test set, and compute the metric of interest, such as R-squared.
+
+Next, we set aside the second fold as our test set, fit on the remaining data, predict on the test set, and compute the metric of interest.
+
+![w03_cv_example2.png](./assets/w03_cv_example2.png "w03_cv_example2.png")
+
+Then similarly with the third fold, the fourth fold, and the fifth fold. As a result we get five values of R-squared from which we can compute statistics of interest, such as the mean, median, and 95% confidence intervals.
+
+![w03_cv_example3.png](./assets/w03_cv_example3.png "w03_cv_example3.png")
+
+Usually the value for `k` is either `5` or `10`.
+
+</details>
+
+<details>
+
+<summary>What is the trade-off of using cross-validation compared to train-test split?</summary>
+
+Using more folds is more computationally expensive. This is because we're fitting and predicting multiple times, instead of just `1`.
+
+</details>
+
+To perform k-fold cross-validation in `scikit-learn`, we can use the function [`cross_val_score`](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.cross_val_score.html#cross-val-score) and the class [`KFold`](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.KFold.html#kfold) that are part of `sklearn.model_selection`.
+
+- the `KFold` class allows us to set a seed and shuffle our data, making our results repeatable downstream. The `n_splits` argument has a default of `5`, but in this case we assign `2`, allowing us to use `2` folds from our dataset for cross-validation. We also set `shuffle=True`, which shuffles our dataset **before** splitting into folds. We assign a seed to the `random_state` keyword argument, ensuring our data would be split in the same way if we repeat the process making the results repeatable downstream. We save this as the variable `kf`.
+
+```python
+X = np.array([[1, 2], [3, 4], [1, 2], [3, 4]])
+y = np.array([1, 2, 3, 4])
+
+kf = KFold(n_splits=2, shuffle=True, random_state=42)
+
+print(list(kf.split(X)))
+print(list(kf.split(y)))
+```
+
+```console
+[(array([0, 2]), array([1, 3])), (array([1, 3]), array([0, 2]))]
+[(array([0, 2]), array([1, 3])), (array([1, 3]), array([0, 2]))]
+```
+
+The result is a list of tuples of arrays with training and testing indices. In this case, we would use elements at indices `0` and `2` to train a model and evaluate it on elements at indices `1` and `3`.
+
+- in practice, you wouldn't call `kf.split` directly. Instead, you would pass the `kf` object to `cross_val_score`. It accepts a model, feature data and target data as the first three positional arguments. We also specify the number of folds by setting the keyword argument `cv` equal to our `kf` variable.
+
+```python
+cv_results = cross_val_score(linear_reg, X, y, cv=kf)
+print(cv_results)
+
+# we can calculate the 95% confidence interval passing our results followed by a list containing the upper and lower limits of our interval as decimals 
+print(np.quantile(cv_results, [0.025, 0.975]))
+```
+
+```console
+[0.70262578, 0.7659624, 0.75188205, 0.76914482, 0.72551151, 0.736]
+array([0.7054865, 0.76874702])
+```
+
+This returns an array of cross-validation scores, which we assign to `cv_results`. The length of the array is the number of folds utilized.
+
+> **Note:** the reported score is the result of calling `linear_reg.score`. Thus, when the model is linear regression, the score reported is $R^2$.
+
+## Hyperparameter optimization/tuning
+
+### Hyperparameters
+
+<details>
+
+<summary>What are hyperparameters?</summary>
+
+A hyperparameter is a variable used for selecting a model's parameters.
+
+</details>
+
+<details>
+
+<summary>What are some examples?</summary>
+
+- $a$ in `Ridge`;
+- $k$ in `KNN`.
+
+</details>
+
+### Introduction
+
+Recall that we had to choose a value for `alpha` in ridge and lasso regression before fitting it.
+
+Likewise, before fitting and predicting `KNN`, we choose `n_neighbors`.
+
+> **Definition:** Parameters that we specify before fitting a model, like `alpha` and `n_neighbors`, are called **hyperparameters**.
+
+<details>
+
+<summary>So, a fundamental step for building a successful model is choosing the correct hyperparameters. What's the best way to go about achieving this?</summary>
+
+We can try lots of different values, fit all of them separately, see how well they perform, and choose the best values!
+
+> **Definition:** The process of trying out different hyperparameters until a satisfactory performance threshold is reached is called **hyperparameter tuning**.
+
+</details>
+
+When fitting different hyperparameter values, we use cross-validation to avoid overfitting the hyperparameters to the test set:
+
+- we split the data into train and test;
+- and perform cross-validation on the training set.
+
+We withhold the test set and use it only for evaluating the final, tuned model.
+
+> **Definition:** The set on which the model is evaluated on during cross-validation is called the **validation set**.
+
+Notice how:
+
+- the training set is used to train the model;
+- the validation set is used to tune the model until a satisfactory performance threshold is used;
+- the test set is used as the final set on which model performance is reported. It is data that the model hasn't seen, but because it is labeled, we can use to evaluate the performance eliminating bias.
+
+### Grid search cross-validation
+
+<details>
+
+<summary>Do you know what grid search cross-validation comprises of?</summary>
+
+One approach for hyperparameter tuning is called **grid search**, where we choose a grid of possible hyperparameter values to try. In Python this translates to having a dictionary that maps strings to lists/arrays of possible values to choose from.
+
+For example, we can search across two hyperparameters for a `KNN` model - the type of metric and a different number of neighbors. We perform `k`-fold cross-validation for each combination of hyperparameters. The mean scores (in this case, accuracies) for each combination are shown here:
+
+![w04_grid_search_cv.png](./assets/w04_grid_search_cv.png "w04_grid_search_cv.png")
+
+We then choose hyperparameters that performed best:
+
+![w04_grid_search_cv_choose_best.png](./assets/w04_grid_search_cv_choose_best.png "w04_grid_search_cv_choose_best.png")
+
+To get a list of supported values for the model we're building, we can use the scikit-learn documentation. For example, in the documentation for [logistic regression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html#logisticregression), the possible values for the `solver` parameter can be seen as one scrolls down the page.
+
+### In `scikit-learn`
+
+`scikit-learn` has an implementation of grid search using cross-validation in the `sklearn.model_selection` module:
+
+```python
+from sklearn.model_selection import GridSearchCV
+
+# instantiate a `KFold` object
+
+param_grid = {
+    'alpha': np.arange(0.0001, 1, 10),
+    'solver': ['sag', 'lsqr']
+}
+
+ridge_cv = GridSearchCV(Ridge(), param_grid, cv=kf)
+ridge_cv.fit(X_train, y_train)
+print(ridge_cv.best_params_, ridge_cv.best_score_)
+```
+
+```console
+{'alpha': 0.0001, 'solver': 'sag'}
+0.7529912278705785
+```
+
+</details>
+
+<details>
+
+<summary>What is the main problem of grid search?</summary>
+
+Grid search is great - it allows us to scan a predefined parameter space fully. However, it does not scale well:
+
+<details>
+
+<summary>How many fits will be done while performing 3-fold cross-validation for 1 hyperparameter with 10 values?</summary>
+
+Answer: 30.
+
+</details>
+
+<details>
+
+<summary>How many fits will be done while performing 10-fold cross-validation for 3 hyperparameters with 10 values each?</summary>
+
+Answer: 10,000!
+
+We can verify this:
+
+```python
+import numpy as np
+from sklearn import svm, datasets
+from sklearn.model_selection import GridSearchCV
+
+
+def main():
+    iris = datasets.load_iris()
+
+    parameters = {
+        'degree': np.arange(10),
+        'C': np.linspace(0, 10, 10),
+        'tol': np.linspace(0.0001, 0.01, 10),
+    }
+
+    print(len(parameters['degree']))
+    print(len(parameters['C']))
+    print(len(parameters['tol']))
+
+    svc = svm.SVC() # This is a support vector machine. We'll talk about it soon.
+    clf = GridSearchCV(svc, parameters, cv=10, verbose=1)
+    clf.fit(iris.data, iris.target)
+    print(sorted(clf.cv_results_))
+
+
+if __name__ == '__main__':
+    main()
+```
+
+This is because:
+
+1. The total number of parameter combinations is `10^3 = 1000` (we have one for-loop with two nested ones inside).
+
+  ```python
+  # pseudocode
+  for d in degrees:
+    for c in cs:
+      for tol in tols:
+        # this is one combination
+  ```
+
+2. For every single one combination we do a `10`-fold cross-validation to get the mean metric. This means that every single one of the paramter combinations is the same while we shift the training and testing sets `10` times.
+
+</details>
+
+<details>
+
+<summary>What is the formula in general then?</summary>
+
+```text
+number of fits = number of folds * number of total hyperparameter values
+```
+
+</details>
+
+<details>
+
+<summary>How can we go about solving this?</summary>
+
+### Randomized search cross-validation
+
+We can perform a random search, which picks random hyperparameter values rather than exhaustively searching through all options.
+
+```python
+from sklearn.model_selection import RandomizedSearchCV
+
+# instantiate a `KFold` object
+
+param_grid = {
+    'alpha': np.arange(0.0001, 1, 10),
+    'solver': ['sag', 'lsqr']
+}
+
+# optionally set the "n_iter" argument, which determines the number of hyperparameter values tested (default is 10)
+# 5-fold cross-validation with "n_iter" set to 2 performs 10 fits
+ridge_cv = RandomizedSearchCV(Ridge(), param_grid, cv=kf, n_iter=2)
+ridge_cv.fit(X_train, y_train)
+print(ridge_cv.best_params_, ridge_cv.best_score_)
+```
+
+In this case it is able to find the best hyperparameters from our previous grid search!
+
+```console
+{'alpha': 0.0001, 'solver': 'sag'}
+0.7529912278705785
+```
+
+#### Benefits
+
+This allows us to search from large parameter spaces efficiently.
+
+### Evaluating on the test set
+
+We can evaluate model performance on the test set by passing it to a call of the grid/random search object's `.score` method.
+
+```python
+test_score = ridge_cv.score(X_test, y_test)
+test_score
+```
+
+```console
+0.7564731534089224
+```
+
+</details>
 
 </details>
