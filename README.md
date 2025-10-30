@@ -22,13 +22,13 @@ Please follow the instructions in one of the following two folders:
 2. ✅ 13.10, Monday, 7:15 pm, 013
 3. ✅ 20.10, Monday, 7:15 pm, 013
 4. ✅ 27.10, Monday, 7:15 pm, 013
-5. 03.11, Monday, 7:15 pm, 013
-6. **04.11, Tuesday, 7:15 pm, 013**
-7. 10.11, Monday, 7:15 pm, 013
-8. 17.11, Monday, 7:15 pm, 013
-9. 24.11, Monday, 7:15 pm, 013
-10. 01.12, Monday, 7:15 pm, 013
-11. **02.12, Tuesday, 7:15 pm, 013**
+5. **04.11, Tuesday, 7:15 pm, 013**
+6. 10.11, Monday, 7:15 pm, 013
+7. 17.11, Monday, 7:15 pm, 013
+8. 24.11, Monday, 7:15 pm, 013
+9. 01.12, Monday, 7:15 pm, 013
+10. **02.12, Tuesday, 7:15 pm, 013**
+11. **11.12, Thursday, 5:15 pm, 020**
 12. **11.12, Thursday, 7:15 pm, 013**
 13. 15.12, Monday, 7:15 pm, 013
 14. 05.01, Monday, 7:15 pm, 013
