@@ -3862,7 +3862,7 @@ $$FPR = \frac{FP}{FP + TN}$$
 
 ![w03_cm_recall.png](./assets/w03_cm_recall.png "w03_cm_recall.png")
 
-- **high recall** reflects a **lower false positive rate**. For our classifier, this translates to fewer legitimate transactions being classified as fraudulent.
+- **high recall** reflects a **lower false negative rate**. For our classifier, this translates to fewer legitimate transactions being classified as fraudulent.
 
 $$FNR = \frac{FN}{TP + FN}$$
 
