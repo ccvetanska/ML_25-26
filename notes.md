@@ -108,6 +108,31 @@
     - [Randomized search cross-validation](#randomized-search-cross-validation)
       - [Benefits](#benefits)
     - [Evaluating on the test set](#evaluating-on-the-test-set)
+- [Week 05 - Preprocessing and Pipelines. Support Vector Machines](#week-05---preprocessing-and-pipelines-support-vector-machines)
+  - [Preprocessing and Pipelines](#preprocessing-and-pipelines)
+    - [Dealing with categorical features](#dealing-with-categorical-features)
+      - [Dropping one of the categories per feature](#dropping-one-of-the-categories-per-feature)
+      - [In `scikit-learn` and `pandas`](#in-scikit-learn-and-pandas)
+    - [EDA with categorical feature](#eda-with-categorical-feature)
+    - [Handling missing data](#handling-missing-data)
+      - [Removing missing values](#removing-missing-values)
+      - [Imputing missing values](#imputing-missing-values)
+      - [Using pipelines](#using-pipelines)
+    - [Centering and scaling](#centering-and-scaling)
+    - [Standardization and normalization](#standardization-and-normalization)
+    - [Scaling in `scikit-learn`](#scaling-in-scikit-learn)
+    - [How do we decide which model to try out in the first place?](#how-do-we-decide-which-model-to-try-out-in-the-first-place)
+  - [Support Vector Machines](#support-vector-machines)
+    - [The use-case for kernel SVMs](#the-use-case-for-kernel-svms)
+    - [Prediction function](#prediction-function)
+    - [Fitting the model](#fitting-the-model)
+    - [The Kernel Trick](#the-kernel-trick)
+    - [Minimizing the objective](#minimizing-the-objective)
+    - [`SVC` in `scikit-learn`](#svc-in-scikit-learn)
+    - [`LinearSVC` in `scikit-learn`](#linearsvc-in-scikit-learn)
+    - [Loss function diagrams](#loss-function-diagrams)
+    - [Comparing logistic regression and SVM](#comparing-logistic-regression-and-svm)
+    - [`SGDClassifier`](#sgdclassifier)
 
 # Week 01 - Numpy, Pandas, Matplotlib & Seaborn
 
@@ -4419,5 +4444,1327 @@ test_score
 ```
 
 </details>
+
+</details>
+
+# Week 05 - Preprocessing and Pipelines. Support Vector Machines
+
+## Preprocessing and Pipelines
+
+### Dealing with categorical features
+
+`scikit-learn` requires data that:
+
+- is in **numeric** format;
+- has **no missing** values.
+
+All the data that we have used so far has been in this format. However, with real-world data:
+
+- this will rarely be the case;
+- typically we'll spend around 80% of our time solely focusing on preprocessing it before we can build models (may come as a shoker).
+
+Say we have a dataset containing categorical features, such as `color` and `genre`. Those features are not numeric and `scikit-learn` will not accept them.
+
+<details>
+
+<summary>How can we solve this problem?</summary>
+
+We can substitute the strings with numbers.
+
+<details>
+
+<summary>What approach can we use to do this?</summary>
+
+We need to convert them into numeric features. We can achieve this by **splitting the features into multiple *binary* features**:
+
+- `0`: observation was not that category;
+- `1`: observation was that category.
+
+![w05_dummies.png](./assets/w05_dummies.png "w05_dummies.png")
+
+> **Definition:** Such binary features are called **dummy variables**.
+
+We create dummy features for each possible `genre`. As each song has one `genre`, each row will have a `1` in only one of the ten columns and `0` in the rest.
+
+**Benefit:** We can now pass categorical features to models as well.
+
+</details>
+
+</details>
+
+<details>
+
+<summary>What is one problem of this approach?</summary>
+
+#### Dropping one of the categories per feature
+
+If a song is not any of the first `9` genres, then implicitly, it is a `Rock` song. That means we only need nine features, so we can delete the `Rock` column.
+
+If we do not do this, we are duplicating information, which might be an issue for some models (we're essentially introducing linear dependence - if I know the values for the first `9` columns, I for sure know the value of the `10`-th one as well).
+
+![w05_dummies.png](./assets/w05_dummies_drop_first.png "w05_dummies.png")
+
+Let's see why we have linear dependence:
+
+To check for linear dependece, we can see what happens when we do one-hot encoding:
+
+$$x_2 = 1 - x_0 - x_1 = (1, 1, 1) - (0, 1, 1) = (1, 0, 0)$$
+
+This means that $x_2$ is linearly dependent hence brings no new information.
+
+</details>
+
+#### In `scikit-learn` and `pandas`
+
+To create dummy variables we can use:
+
+- the `OneHotEncoder` class if we're working with `scikit-learn`;
+- or `pandas`'s `get_dummies` function.
+
+We will use `get_dummies`, passing the categorical column.
+
+```python
+df_music.head()
+```
+
+```console
+   popularity  acousticness  danceability  duration_ms  energy  instrumentalness  liveness  loudness  speechiness       tempo  valence       genre
+0          41        0.6440         0.823       236533   0.814          0.687000    0.1170    -5.611       0.1770  102.619000    0.649        Jazz
+1          62        0.0855         0.686       154373   0.670          0.000000    0.1200    -7.626       0.2250  173.915000    0.636         Rap
+2          42        0.2390         0.669       217778   0.736          0.000169    0.5980    -3.223       0.0602  145.061000    0.494  Electronic
+3          64        0.0125         0.522       245960   0.923          0.017000    0.0854    -4.560       0.0539  120.406497    0.595        Rock
+4          60        0.1210         0.780       229400   0.467          0.000134    0.3140    -6.645       0.2530   96.056000    0.312         Rap
+```
+
+```python
+# As we only need to keep nine out of our ten binary features, we can set the "drop_first" argument to "True".
+music_dummies = pd.get_dummies(df_music['genre'], drop_first=True)
+music_dummies.head()
+```
+
+```console
+   Anime  Blues  Classical  Country  Electronic  Hip-Hop   Jazz    Rap   Rock
+0  False  False      False    False       False    False   True  False  False
+1  False  False      False    False       False    False  False   True  False
+2  False  False      False    False        True    False  False  False  False
+3  False  False      False    False       False    False  False  False   True
+4  False  False      False    False       False    False  False   True  False
+```
+
+Printing the first five rows, we see pandas creates `9` new binary features. The first song is `Jazz`, and the second is `Rap`, indicated by a `True`/`1` in the respective columns.
+
+```python
+music_dummies = pd.get_dummies(df_music['genre'], drop_first=True, dtype=int)
+music_dummies.head()
+```
+
+```console
+   Anime  Blues  Classical  Country  Electronic  Hip-Hop  Jazz  Rap  Rock
+0      0      0          0        0           0        0     1    0     0
+1      0      0          0        0           0        0     0    1     0
+2      0      0          0        0           1        0     0    0     0
+3      0      0          0        0           0        0     0    0     1
+4      0      0          0        0           0        0     0    1     0
+```
+
+To bring these binary features back into our original DataFrame we can use `pd.concat`, passing a list containing the music DataFrame and our dummies DataFrame, and setting `axis=1`. Lastly, we can remove the original genre column using `df.drop`, passing the `columns=['genre']`.
+
+```python
+music_dummies = pd.concat([df_music, music_dummies], axis=1)
+music_dummies = music_dummies.drop(columns=['genre'])
+```
+
+If the DataFrame only has one categorical feature, we can pass the entire DataFrame, thus skipping the step of combining variables.
+
+If we don't specify a column, the new DataFrame's binary columns will have the original feature name prefixed, so they will start with `genre_`.
+
+```python
+music_dummies = pd.get_dummies(df_music, drop_first=True)
+music_dummies.columns
+```
+
+```console
+Index(['popularity', 'acousticness', 'danceability', 'duration_ms', 'energy',
+       'instrumentalness', 'liveness', 'loudness', 'speechiness', 'tempo',   
+       'valence', 'genre_Anime', 'genre_Blues', 'genre_Classical',
+       'genre_Country', 'genre_Electronic', 'genre_Hip-Hop', 'genre_Jazz',   
+       'genre_Rap', 'genre_Rock'],
+      dtype='object')
+```
+
+Notice the original genre column is automatically dropped. Once we have dummy variables, we can fit models as before.
+
+### EDA with categorical feature
+
+We will be working with the above music dataset this week, for both classification and regression problems.
+
+Initially, we will build a regression model using all features in the dataset to predict song `popularity`. There is one categorical feature, `genre`, with ten possible values.
+
+We can use a `boxplot` to visualize the relationship between categorical and numeric features:
+
+![w05_eda.png](./assets/w05_eda.png "w05_eda.png")
+
+### Handling missing data
+
+<details>
+
+<summary>How can we define missing data?</summary>
+
+When there is no value for a feature in a particular row, we call it missing data.
+
+</details>
+
+<details>
+
+<summary>Why might this happen?</summary>
+
+- there was no observation;
+- the data might be corrupt;
+- the value is invalid;
+- etc, etc.
+
+</details>
+
+<details>
+
+<summary>What pandas functions/methods can we use to check how much of our data is missing?</summary>
+
+We can use the `isna()` pandas method:
+
+```python
+# get the number of missing values per column
+df_music.isna().sum().sort_values(ascending=False)
+```
+
+```console
+acousticness        200
+energy              200
+valence             143
+danceability        143
+instrumentalness     91
+duration_ms          91
+speechiness          59
+tempo                46
+liveness             46
+loudness             44
+popularity           31
+genre                 8
+dtype: int64
+```
+
+We see that each feature is missing between `8` and `200` values!
+
+Sometimes it's more appropriate to see the percentage of missing values:
+
+```python
+# get the number of missing values per column
+df_music.isna().mean().sort_values(ascending=False)
+```
+
+```console
+acousticness        0.200
+energy              0.200
+valence             0.143
+danceability        0.143
+instrumentalness    0.091
+duration_ms         0.091
+speechiness         0.059
+tempo               0.046
+liveness            0.046
+loudness            0.044
+popularity          0.031
+genre               0.008
+dtype: float64
+```
+
+</details>
+
+<details>
+
+<summary>How could we handle missing data in your opinion?</summary>
+
+1. Remove it.
+2. Substitute it with a plausible value.
+
+</details>
+
+<details>
+
+<summary>What similar analysis could we do to find columns that are not useful?</summary>
+
+We can check the number of unique values in categorical columns. If every row has a unique value, then this feature is useless - there is no pattern.
+
+</details>
+
+#### Removing missing values
+
+Two common approaches:
+
+- for the columns with $< 5\%$ missing values, remove the **rows** that contain those missing values.
+- for the columns with $> 65\%$ missing values, remove the **columns**.
+
+To remove observations with missing values from a certain columnset, we can use the pandas `dropna` method, passing a list of columns to the `subset` argument. The idea being, that if there are missing values in our subset column, **the entire row** is removed.
+
+```python
+df_music = df_music.dropna(subset=['genre', 'popularity', 'loudness', 'liveness', 'tempo'])
+df_music.isna().mean().sort_values(ascending=False)
+```
+
+```console
+acousticness        0.199552
+energy              0.199552
+valence             0.142377
+danceability        0.142377
+speechiness         0.059417
+duration_ms         0.032511
+instrumentalness    0.032511
+popularity          0.000000
+loudness            0.000000
+liveness            0.000000
+tempo               0.000000
+genre               0.000000
+dtype: float64
+```
+
+Other rules of thumb include:
+
+- removing every missing value from the target feature;
+- removing columns whose missing values are above `65%`;
+- etc, etc.
+
+#### Imputing missing values
+
+> **Definition:** Making an educated guess as to what the missing values could be.
+
+Which value to use?
+
+- for numeric features, it's best to use the `median` of the column;
+- for categorical values, we typically use the `mode` - the most frequent value.
+
+<details>
+
+<summary>What should we do to our data before imputing missing values?</summary>
+
+We must split our data before imputing to avoid leaking test set information to our model, a concept known as **data leakage**.
+
+</details>
+
+Here is a workflow for imputation:
+
+```python
+from sklearn.impute import SimpleImputer
+imp_cat = SimpleImputer(strategy='most_frequent')
+X_train_cat = imp_cat.fit_transform(X_train_cat)
+X_test_cat = imp_cat.transform(X_test_cat)
+```
+
+For our numeric data, we instantiate and use another imputer.
+
+```python
+imp_num = SimpleImputer(strategy='median') # note that default is 'mean'
+X_train_num = imp_num.fit_transform(X_train_num)
+X_test_num = imp_num.transform(X_test_num)
+X_train = pd.concat([X_train_num, X_train_cat], axis=1)
+X_test = pd.concat([X_test_num, X_test_cat], axis=1)
+```
+
+> **Definition:** Due to their ability to transform our data, imputers are known as **transformers**.
+
+#### Using pipelines
+
+> **Definition:** A pipeline is an object used to run a series of transformers and build a model in a single workflow.
+
+```python
+from sklearn.pipeline import Pipeline
+
+df_music = df_music.dropna(subset=['genre', 'popularity', 'loudness', 'liveness', 'tempo'])
+df_music['genre'] = np.where(df_music['genre'] == 'Rock', 1, 0)
+X = df_music.drop(columns=['genre'])
+y = df_music['genre']
+```
+
+To build a pipeline we construct a list of steps containing tuples with the step names specified as strings, and instantiate the transformer or model.
+
+> **Note:** In a pipeline, each step but the last must be a transformer.
+
+```python
+steps = [('imputation', SimpleImputer()),
+('logistic_regression', LogisticRegression())]
+
+pipeline = Pipeline(steps)
+
+pipeline.fit(X_train, y_train)
+pipeline.score(X_test, y_test)
+```
+
+### Centering and scaling
+
+Let's use the `.describe().T` function composition to check out the ranges of some of our feature variables in the music dataset.
+
+![w05_scaling_problem.png](./assets/w05_scaling_problem.png "w05_scaling_problem.png")
+
+We see that the ranges vary widely:
+
+- `duration_ms` ranges from `-1` to `1.6` million;
+- `speechiness` contains only decimal values;
+- `loudness` only has negative values.
+
+<details>
+
+<summary>What is the problem here?</summary>
+
+Some machine learning models use some form of distance to inform them, so if we have features on far larger scales, they can disproportionately influence our model.
+
+For example, `KNN` uses distance explicitly when making predictions.
+
+</details>
+
+<details>
+
+<summary>What are the possible solutions?</summary>
+
+We actually want features to be on a similar scale. To achieve this, we can `normalize` or `standardize` our data, often also referred to as scaling and centering.
+
+As benefits we get:
+
+1. Model agnostic data, meaning that any model would be able to work with it.
+2. All features have equal meaning/contribution/weight.
+
+</details>
+
+### Standardization and normalization
+
+Given any column, we can subtract the mean and divide by the variance:
+
+![w05_standardization_formula.png](./assets/w05_standardization_formula.png "w05_standardization_formula.png")
+
+- Result: All features are centered around `0` and have a variance of `1`.
+- Terminology: This is called **standardization**.
+
+We can also subtract the minimum and divide by the range of the data:
+
+![w05_normalization_formula.png](./assets/w05_normalization_formula.png "w05_normalization_formula.png")
+
+- Result: The normalized dataset has minimum of `0` and maximum of `1`.
+- This is called **normalization**.
+
+Or, we can center our data so that it ranges from `-1` to `1` instead. In general to get a value in a new interval `[a, b]` we can use the formula:
+
+$$x''' = (b-a)\frac{x - \min{x}}{\max{x} - \min{x}} + a$$
+
+### Scaling in `scikit-learn`
+
+To scale our features, we can use the `StandardScaler` class from `sklearn.preprocessing`:
+
+```python
+from sklearn.preprocessing import StandardScaler
+scaler = StandardScaler()
+X_train_scaled = scaler.fit_transform(X_train)
+X_test_scaled = scaler.transform(X_test)
+print(np.mean(X), np.std(X))
+print(np.mean(X_train_scaled), np.std(X_train_scaled))
+```
+
+```console
+19801.42536120538, 71343.52910125865
+2.260817795600319e-17, 1.0
+```
+
+Looking at the mean and standard deviation of the columns of both the original and scaled data verifies the change has taken place.
+
+We can also put a scaler in a pipeline!
+
+```python
+steps = [('scaler', StandardScaler()),
+         ('knn', KNeighborsClassifier(n_neighbors=6))]
+pipeline = Pipeline(steps).fit(X_train, y_train)
+```
+
+and we can use that pipeline in cross validation. When we specify the hyperparameter space the dictionary has keys that are formed by the pipeline step name followed by a double underscore, followed by the hyperparameter name. The corresponding value is a list or an array of the values to try for that particular hyperparameter.
+
+In this case, we are tuning `n_neighbors` in the `KNN` model:
+
+```python
+pipeline = Pipeline(steps)
+parameters = {'knn__n_neighbors': np.arange(1, 50)}
+```
+
+### How do we decide which model to try out in the first place?
+
+1. The size of our dataset.
+
+   - Fewer features = a simpler model and can reduce training time.
+   - Some models, such as Artificial Neural Networks, require a lot of data to perform well.
+
+2. Interpretability.
+
+   - Some models are easier to explain which can be important for stakeholders.
+   - Linear regression has high interpretability as we can understand the coefficients.
+
+3. Flexibility.
+
+   - More flexibility = higher accuracy, because fewer assumptions are made about the data.
+   - A KNN model does not assume a linear relationship between the features and the target.
+
+4. Train several models and evaluate performance out of the box (i.e. without hyperparameter tuning)
+
+   - Regression model performance
+     - RMSE
+     - $\text{adjusted} R^2$
+
+   - Classification model performance
+     - Confusion matrix
+     - Precision, Recall, F1-score
+     - ROC AUC
+
+5. Scale the data
+
+    Recall that the performance of some models is affected by scaling our data. Therefore, it is generally best to scale our data before evaluating models out of the box.
+
+    Models affected by scaling:
+
+    - KNN;
+    - Linear Regression (+ Ridge, Lasso);
+    - Logistic Regression;
+    - etc, etc, in general, every model that uses distance when predicting or has internal logic that works with intervals (activation functions in NN)
+
+    Models not affected by scaling:
+
+    - Decision Trees;
+    - Random Forest;
+    - XGBoost;
+    - Catboost;
+    - etc, etc, in general, models that are based on trees.
+
+## Support Vector Machines
+
+### The use-case for kernel SVMs
+
+Let's say that during our data audit we find two features that can be used to perfectly separate our training samples:
+
+![w05_ksvm0.png](assets/w05_ksvm0.png "w05_ksvm0.png")
+
+<details>
+
+<summary>If we had the ability to choose between a straight-line model and a curvy-line model, which one would we choose?</summary>
+
+We utilize [Occam's razor](https://en.wikipedia.org/wiki/Occam%27s_razor) and **choose the simpler case**: straight-line model.
+
+</details>
+
+<details>
+
+<summary>What are the possible models, then, that can solve this problem?</summary>
+
+We have many possibilities - here're some:
+
+![w05_ksvm1.png](assets/w05_ksvm1.png "w05_ksvm1.png")
+
+</details>
+
+But, clearly, out of all possible such models, we know that is one and only one that is the best for the given data, right?
+
+<details>
+
+<summary>Which one is it?</summary>
+
+It'd be the one that **maximizes the width** of the "street" between the positive and negative samples:
+
+![w05_ksvm2.png](assets/w05_ksvm2.png "w05_ksvm2.png")
+
+</details>
+
+This is the problem that SVMs solve - they find the model that best separates the training examples!
+
+### Prediction function
+
+Let's say that we do decide to go with an SVM for the above problem. What would be our logic for classifying this new sample:
+
+![w05_ksvm3.png](assets/w05_ksvm3.png "w05_ksvm3.png")
+
+<details>
+
+<summary>Reveal answer</summary>
+
+It'd be really nice if we could base our decision on the median of the street and say that the class would be `circle` if `x` is on the right side of the median / street.
+
+To check that, it'd be easiest to check whether the **dot product** between `x` and an orthogonal vector to the street, ex. `w`, is greater than a constant `c`:
+
+![w05_ksvm4.png](assets/w05_ksvm4.png "w05_ksvm4.png")
+
+$$w^T x >= b$$
+
+And if we let $c = -b$, then we get our familiar linear combination:
+
+$$w^T x + b >= 0$$
+
+</details>
+
+And this is our model. We can notice that similar to `KNN`, the `SVM` **does *not* output probabilities**. Instead, it outputs either `0` or `1` for the two classes. Unlike `KNN`, but similar to `LogisticRegression`, the `SVM` is typically used for **binary classification**.
+
+Our goal now is to find the parameters of the model - $w$ and $b$:
+
+- we don't know what constant to use, because it depends on $w$;
+- but there are many orthogonal vectors $w$ because it can be of any length: how do we choose one?
+
+<details>
+
+<summary>Do you know what strategy support vector machines employ?</summary>
+
+The strategy used by SVMs is that of **enforcing enough *constraints* on the decision function** so that $w$ and $b$ can be uniquely determined. More specifically, two constraints are placed.
+
+</details>
+
+<details>
+
+<summary>What might they be?</summary>
+
+1. For every positive training sample, we want our decision function to output at least $1$:
+
+$$w^T x_+ + b >= 1$$
+
+2. For every negative training sample, we want our decision function to output at most $-1$:
+
+$$w^T x_- + b <= -1$$
+
+</details>
+
+Carrying around two equations like this will be a pain.
+
+<details>
+
+<summary>Can we use the approach we showed last time to combine them into one?</summary>
+
+Yep - we can use the two class labels! If we map them to $-1$ (for all negative samples) and $+1$ (for all positive samples) and multiply the left side of each equation, we'll get that:
+
+Constraint 1 stays the same since $y_i$ is $+1$:
+
+$$y_i (w^T x_i + b) >= 1$$
+
+Constraint 2 becomes:
+
+$$-y_i (w^T x_i + b) <= -1$$
+
+Multiplying by $-1$ on both sides to remove the negative signs:
+
+$$y_i (w^T x_i + b) >= 1$$
+
+Oh - two equations are the same! So, in the end our constraint ends up being:
+
+$$y_i (w^T x_i + b) - 1 >= 0$$
+
+</details>
+
+<details>
+
+<summary>What sign would the value, outputted by the linear combination, need to have in order for the model to satisfy the constraint for negative samples?</summary>
+
+Since $y_i$ is $-1$, it'd need to be negative so that the expression on the left becomes positive.
+
+</details>
+
+<details>
+
+<summary>What sign would the value, outputted by the linear combination, need to have in order for the model to satisfy the constraint for the samples on the edges of street?</summary>
+
+For samples on the edge of the street, we'd have to output $0$.
+
+</details>
+
+<details>
+
+<summary>Do you know how these samples are called?</summary>
+
+Support vectors! Essentially, these are the only samples we need to pay attention to as they define the decision boundary.
+
+</details>
+
+### Fitting the model
+
+Given the constraint $y_i (w^T x_i + b) - 1 >= 0$, we can in fact find the optimal $w$ and $b$. Let's start thinking about $w$.
+
+<details>
+
+<summary>What was its geometrical interpretation?</summary>
+
+It is the vector that allows us to calculate the width of the "street" - the distance between the positive and negative samples.
+
+</details>
+
+Great! So, if we take the following to samples:
+
+![w05_ksvm5.png](assets/w05_ksvm5.png "w05_ksvm5.png")
+
+<details>
+
+<summary>What would be the formula for the width of the street?</summary>
+
+![w05_ksvm6.png](assets/w05_ksvm6.png "w05_ksvm6.png")
+
+$$\text{width} = (x_+ - x_-) \cdot \frac{w}{\|w\|}$$
+
+</details>
+
+<details>
+
+<summary>We aren't done yet - how can we expand this expression using the meaning of support vectors?</summary>
+
+Firstly, we can expand the parenthesis:
+
+$$\text{width} = (x_+ - x_-) \cdot \frac{w}{\|w\|} = \frac{x_+ w - x_- w}{\|w\|}$$
+
+And then we can use the property that $y_i (w^T x_i + b) - 1 = 0$ for all support vectors:
+
+- For $x_+$:
+
+   $$y_+ (w^T x_+ + b) - 1 = 0$$
+
+   Since $y_+ = +1$:
+
+   $$w^T x_+ + b - 1 = 0$$
+
+   Moving $+ b - 1$ to the other side:
+
+   $$w^T x_+ = 1 - b$$
+
+- For $x_-$:
+
+   $$y_- (w^T x_- + b) - 1 = 0$$
+
+   Since $y_- = -1$:
+
+   $$- w^T x_- - b - 1 = 0$$
+
+   Moving $- b - 1$ to the other side:
+
+   $$- w^T x_- = 1 + b$$
+
+Substituting with these equalities in the above equation, we get that the width is inversely proportional to the magnitude of $w$:
+
+$$\text{width} = \frac{x_+ w - x_- w}{\|w\|} = \frac{1 - b + 1 + b}{\|w\|} = \frac{2}{\|w\|}$$
+
+</details>
+
+<details>
+
+<summary>What is our goal then?</summary>
+
+$$\text{max} \frac{2}{\|w\|}$$
+
+</details>
+
+<details>
+
+<summary>What is that equivalent to?</summary>
+
+$$\text{max} \frac{1}{\|w\|}$$
+
+</details>
+
+<details>
+
+<summary>What is that equivalent to?</summary>
+
+$$\text{min} \|w\|$$
+
+</details>
+
+<details>
+
+<summary>What is that equivalent to?</summary>
+
+$$\text{min} \frac{1}{2} \|w\|^2$$
+
+</details>
+
+And it this point, we have our loss function:
+
+$$\text{min } J(\theta) = \frac{1}{2} \|w\|^2$$
+
+$$\text{s.t. } y_i (w^T x_i + b) - 1 >= 0$$
+
+<details>
+
+<summary>Could we solve this with gradient descent?</summary>
+
+This is a **constrained convex optimization problem**. Gradient descent doesn't naturally handle constraints.
+
+Instead, we use [**Lagrange multipliers**](https://en.wikipedia.org/wiki/Lagrange_multiplier) to incorporate the constraints into the objective function, leading us to **the dual SVM problem**.
+
+</details>
+
+The introduction of Lagrange multipliers is expressed as the introduction of new coefficients $\alpha_i$, $\alpha_i \isin [0, \inf]$ ($i$ = for each of the samples) that will be used to enforce the constraints of the primal problem:
+
+$$\max_{\alpha_i >= 0} L(w, b, \alpha) = \frac{1}{2} \|w\|^2 - \sum_i \alpha_i \left[ y_i (w^T x_i + b) - 1 \right]$$
+
+With this addition, our optimization problem becomes a maximization (adversary) minimization (us) one:
+
+- Suppose the constraint is violated, ex. $y_i (w^T x_i + b) - 1 = -1$ ($-1 < 0$) - what value would the adversary place on $\alpha$?
+
+   <details>
+
+   <summary>Reveal answer</summary>
+
+   A really large positive value, since they'd have $-\alpha (-1)$, so: $\alpha = \inf$.
+
+   </details>
+
+- Suppose the constraint is not violated, ex. $100$ ($100 > 0$) - what value would the adversary place on $\alpha$?
+
+   <details>
+
+   <summary>Reveal answer</summary>
+
+   The lowest they can - $0$.
+
+   </details>
+
+Ok - great - we now have to find the extremum of a function!
+
+<details>
+
+<summary>What was the process for that?</summary>
+
+We take the derivatives and set them to $0$!
+
+- The derivative of $L$ with respect to $w$ is:
+
+   $$\frac{\partial L}{\partial w} = w - \sum_i \alpha_i y_i x_i$$
+
+   We set it to $0$:
+
+   $$w - \sum_i \alpha_i y_i x_i = 0$$
+
+   And get that $w$ is just a linear sum of the samples:
+
+   $$w = \sum_i \alpha_i y_i x_i$$
+
+- The derivative of $L$ with respect to $b$ is:
+
+   $$\frac{\partial L}{\partial b} = - \sum_i \alpha_i y_i$$
+
+   We set it to $0$ and get that the dot product between the $\alpha$ vector and the $b$ vector is $0$:
+
+   $$\sum_i \alpha_i y_i = 0$$
+
+> **Note:** This $\sum_i \alpha_i y_i = 0$ is actually a constraint on the possible values for $\alpha$. It is referred to as the "linear equality constraint". We'll have to enforce this to our optimization problem.
+
+</details>
+
+<details>
+
+<summary>What would our next step be?</summary>
+
+Let's substitute $w$ with what we've found.
+
+We can rewrite the norm of $w$ as a matrix operation:
+
+$$\max_{\alpha_i >= 0} L = \frac{1}{2} w^T w - \sum_i \alpha_i \left[ y_i (w^T x_i + b) - 1 \right]$$
+
+Let's now distribute the $y$s in the parenthesis:
+
+$$\max_{\alpha_i >= 0} L = \frac{1}{2} w^T w - \sum_i \alpha_i \left( y_i w^T x_i + y_i b - 1 \right)$$
+
+Let's now distribute the $\alpha$s in the parenthesis:
+
+$$\max_{\alpha_i >= 0} L = \frac{1}{2} w^T w - \sum_i \left( \alpha_i y_i w^T x_i + \alpha_i y_i b - \alpha_i \right)$$
+
+Distributing the sum:
+
+$$\max_{\alpha_i >= 0} L = \frac{1}{2} w^T w - \sum_i \alpha_i y_i w^T x_i - \sum_i \alpha_i y_i b + \sum_i \alpha_i$$
+
+Moving constants outside of the sum:
+
+$$\max_{\alpha_i >= 0} L = \frac{1}{2} w^T w - w^T \sum_i \alpha_i y_i x_i - b \sum_i \alpha_i y_i + \sum_i \alpha_i$$
+
+We can remove one element since $\sum_i \alpha_i y_i = 0$ and start substituting $w$:
+
+$$\max_{\alpha_i >= 0} L = \frac{1}{2} w^T \sum_i \alpha_i y_i x_i - w^T \sum_i \alpha_i y_i x_i + \sum_i \alpha_i$$
+
+We have the same multipliers for $w^T$, so we're left with $-\frac{1}{2}$:
+
+$$\max_{\alpha_i >= 0} L = - \frac{1}{2} w^T \sum_i \alpha_i y_i x_i + \sum_i \alpha_i$$
+
+</details>
+
+Let's substitute the second $w$ and change the indices of the sums so as to make it clear that they are separate:
+
+$$\max_{\alpha_i >= 0} L = - \frac{1}{2} (\sum_i \alpha_i y_i x_i^T) (\sum_j \alpha_j y_j x_j) + \sum_i \alpha_i$$
+
+Combining the sums yields:
+
+$$\max_{\alpha_i >= 0} L(\alpha) = - \frac{1}{2} \sum_i \sum_j \alpha_i \alpha_j y_i y_j x_i^T x_j + \sum_i \alpha_i$$
+
+Which we can make into a minimization problem:
+
+$$\min_{\alpha_i >= 0} L(\alpha) = \frac{1}{2} \sum_i \sum_j \alpha_i \alpha_j y_i y_j x_i^T x_j - \sum_i \alpha_i$$
+
+<details>
+
+<summary>Are we done?</summary>
+
+Not yet - we need to enforce the constraints.
+
+</details>
+
+<details>
+
+<summary>What variables would the constraints be related to?</summary>
+
+Since this is a function the $\alpha$s, they are the only variable that can vary, so it'd be the $\alpha$s.
+
+</details>
+
+<details>
+
+<summary>Which is the first constraint?</summary>
+
+The linear equality constraint that we got from differentiation: $\sum_i \alpha_i y_i = 0$.
+
+</details>
+
+The second one is related to the possible values values that the $\alpha$s can take.
+
+<details>
+
+<summary>What values did we say that they can take initially?</summary>
+
+$$[0, \inf]$$
+
+</details>
+
+<details>
+
+<summary>What do very high values mean?</summary>
+
+The loss will be higher as $\alpha$ grows. This would mean that we'll have to classify every point perfectly to get $\alpha = 0$.
+
+But ...
+
+We know what this means right? **Overfitting**.
+
+</details>
+
+<details>
+
+<summary>How can we handle this problem?</summary>
+
+We can introduce a hyperparameter of the SVM that would control how much **regularization** we impose - this parameter is typically called **C**:
+
+$$\alpha_i \in [0, C]$$
+
+</details>
+
+Interestingly enough this parameter **C** did already show up.
+
+<details>
+
+<summary>Which algorithm also had the parameter "C"?</summary>
+
+`LogisticRegression`
+
+</details>
+
+So, `C` is the regularization parameter we'll employ in SVMs as well.
+
+<details>
+
+<summary>What was its meaning - as "C" increases what happens to the regularization strength?</summary>
+
+It **decreases**! Notice, as we make the interval bigger, our model would start overfitting, since the adversary wants to maximize the values of the $\alpha$s.
+
+![w05_ksvm7.png](assets/w05_ksvm7.png "w05_ksvm7.png")
+
+</details>
+
+<details>
+
+<summary>Hmm, that is interesting - can we then use the values of the alphas to distinguish whether a sample is a support vector or not?</summary>
+
+We can! The support vectors are the samples $i$ for which $\alpha_i$ is strictly positive!
+
+> **Note:** In practice, the resulting alphas are very tiny, so we usually pick the support vectors based on a small positive values $\epsilon$, i.e. `support_ = np.where(alphas > 1e-5)[0]`.
+
+</details>
+
+Ok, great! So, how are we going to solve this? We already know that Gradient descent won't work as we have constraints?
+
+We'll use a quadratic solver for this, more specifically [the package quadprog](https://github.com/quadprog/quadprog). We'll go back to how we're going to use it, but first let's talk about something of equal importance.
+
+### The Kernel Trick
+
+<details>
+
+<summary>Why did we went though all of this trouble if we're going to, in the end, use a third-party package to solve it for us?</summary>
+
+Because it shows us an interesting dependence between the loss function and the training samples.
+
+</details>
+
+<details>
+
+<summary>What is the only information the loss function needs from our samples?</summary>
+
+It **does *not*** depend on the individual samples, but ***only* on the *dot-product*** between every pair of them!
+
+</details>
+
+But the story does not end here - let's substitute $w$ in the prediction function and see what we get for an unknown sample $u$:
+
+We take the initial form for predicting the positive class:
+
+$$w^T u + b >= 0$$
+
+And place $w$:
+
+$$\sum_i \alpha_i y_i x_i^T u + b >= 0$$
+
+<details>
+
+<summary>What do we see?</summary>
+
+**The decision rule also depends only on dot-products!** In this case, between the unknown vector and our support vectors.
+
+</details>
+
+This is a big deal because it let's us switch perspectives when we have linearly inseparable data:
+
+![w05_ksvm8.png](assets/w05_ksvm8.png "w05_ksvm8.png")
+
+So, if the transformation is $F$, what do we need in order to classify a new point?
+
+<details>
+
+<summary>Reveal answer</summary>
+
+We need $F(x_i) \cdot F(u)$.
+
+</details>
+
+<details>
+
+<summary>And what do we need in order to minimize our loss function?</summary>
+
+We need $F(x_i) \cdot F(x_j)$.
+
+</details>
+
+<details>
+
+<summary>Hmm - ok ... but what does that mean then?</summary>
+
+If we define a function $K(m, n) = F(m) \cdot F(n)$, then $K$ is all we need!
+
+</details>
+
+We don't actually need to compute $F$ directly anywhere! We can use the kernel to get what we require! <- **This is referred to as the *kernel trick*!**
+
+The function $K$ is called the *kernel* - it outputs an approximation of the dot-product in another space, **without knowing the transformation $F$**.
+
+So, we don't need to know $F$, we only need to know $K$! This is the power of SVMs.
+
+Great! What are some popular kernels? We can check them out [in sklearn's documentation](https://scikit-learn.org/stable/auto_examples/svm/plot_svm_kernels.html#sphx-glr-auto-examples-svm-plot-svm-kernels-py):
+
+- Linear: $K(\mathbf{x}_1, \mathbf{x}_2) = \mathbf{x}_1^\top \mathbf{x}_2$.
+- Polynomial: $K(\mathbf{x}_1, \mathbf{x}_2) = (\gamma \cdot \ \mathbf{x}_1^\top\mathbf{x}_2 + r)^d$.
+- RBF: $K(\mathbf{x}_1, \mathbf{x}_2) = \exp\left(-\gamma \cdot {\|\mathbf{x}_1 - \mathbf{x}_2\|^2}\right)$:
+  - The default kernel for Support Vector Machines in `scikit-learn`!
+  - Prone to overfitting - watch out and use regularization!
+    - When the parameter $\gamma$ is small, the Gaussians get shurk around the sample points and we get overfitting.
+  - Measures similarity between two data points in ***infinite* dimensions**!
+- Sigmoid: $K(\mathbf{x}_1, \mathbf{x}_2) = \tanh(\gamma \cdot \mathbf{x}_1^\top\mathbf{x}_2 + r)$
+
+### Minimizing the objective
+
+Let's go back now to the way we're optimizing this objective:
+
+$$\min_{\alpha_i >= 0} L(\alpha) = \frac{1}{2} \sum_i \sum_j \alpha_i \alpha_j y_i y_j x_i^T x_j - \sum_i \alpha_i$$
+
+Note, that now we can rewrite this as:
+
+$$\min_{\alpha_i >= 0} L(\alpha) = \frac{1}{2} \sum_i \sum_j \alpha_i \alpha_j y_i y_j K(x_i, x_j) - \sum_i \alpha_i$$
+
+We'll use the function `quadprog.solve_qp`. Here's its docstring:
+
+```python
+def solve_qp(double[:, :] G, double[:] a, double[:, :] C=None, double[:] b=None, int meq=0, factorized=False):
+    """Solve a strictly convex quadratic program
+
+    Minimize     1/2 x^T G x - a^T x
+    Subject to   C.T x >= b
+
+    This routine uses the the Goldfarb/Idnani dual algorithm [1].
+
+    References
+    ---------
+    ... [1] D. Goldfarb and A. Idnani (1983). A numerically stable dual
+        method for solving strictly convex quadratic programs.
+        Mathematical Programming, 27, 1-33.
+
+    Parameters
+    ----------
+    G : array, shape=(n, n)
+        matrix appearing in the quadratic function to be minimized
+    a : array, shape=(n,)
+        vector appearing in the quadratic function to be minimized
+    C : array, shape=(n, m)
+        matrix defining the constraints under which we want to minimize the
+        quadratic function
+    b : array, shape=(m), default=None
+        vector defining the constraints
+    meq : int, default=0
+        the first meq constraints are treated as equality constraints,
+        all further as inequality constraints (defaults to 0).
+    factorized : bool, default=False
+        If True, then we are passing `R^{−1}` instead of the matrix G
+        in the argument G, where `G = R^T R` and R is upper triangular.
+
+    Returns
+    -------
+    x : array, shape=(n,)
+        vector containing the solution of the quadratic programming problem.
+    f : float
+        the value of the quadratic function at the solution.
+    xu : array, shape=(n,)
+        vector containing the unconstrained minimizer of the quadratic function
+    iterations : tuple
+        2-tuple. the first component contains the number of iterations the
+        algorithm needed, the second indicates how often constraints became
+        inactive after becoming active first.
+    lagrangian : array, shape=(m,)
+        vector with the Lagragian at the solution.
+    iact : array
+        vector with the indices of the active constraints at the solution.
+    """
+```
+
+We can see that it'll try to `Minimize     1/2 x^T G x - a^T x`.
+
+> **Note:** Here the vector $x$ is not to our training samples. It represent the $\alpha$s that we're trying to find (see `Returns`, first entry in the tuple)!
+
+We see that we have to set values to the following hyperparameters: `G`, `a`, `C`, `b`, `meq`, and `factorized`.
+
+- What value would we give to $G$?
+  - $G$ is known as the **Gram matrix** of the kernel: the matrix of pairwise kernel evaluations between all training samples.
+  - It represent this part of the loss function: $\frac{1}{2} \sum_i \sum_j \alpha_i \alpha_j y_i y_j K(x_i, x_j)$ ($\frac{1}{2}$ is just a constant, so we can ignore it).
+  - Each entry tells us **how similar two samples are** according to the chosen kernel.
+  - If we denote the kernel function as $K(x_i, x_j)$, then $G_{ij} = y_i y_j K(x_i, x_j)$.
+- What value would we give to $a$?
+  - This is the linear term in the loss function: $- \sum_i \alpha_i$.
+  - Since the $x$s are the $\alpha_i$s, that means that $a$ is a vector with ones (`num_ones = num_samples`).
+- What values would we give to $C$ and $b$?
+  - $C$ represents the left side of the equations, while $b$ - the right side.
+  - Our goal is to represent out two constraints $\sum_i \alpha_i y_i = 0$, $\alpha_i \in [0, C]$, so $C$ and $b$ will have three (vertical) parts:
+    - constraining $\sum_i \alpha_i y_i = 0$:
+      - the first in $C$ will be just the vector of mapped classes (to $-1$ and $1$);
+      - the first in $b$ will be $0$, since the alphas should combine them in such a way that the sum is equal to $0$.
+    - constraining $\alpha_i >= 0$:
+      - the second in $C$ is an identity matrix with the size of the samples;
+      - the second in $b$ is a vector of $0$s (`num_zeros = num_samples`) to represent the lower bound.
+    - constraining $\alpha_i <= C$ via $-\alpha_i >= -C$:
+      - the third in $C$ is the negated identity matrix with the size of the samples;
+      - the third in $b$ is a vector of $-C$ (`num_neg_cs = num_samples`) to represent the upper bound.
+
+<details>
+
+<summary>What values would we give to "meq"?</summary>
+
+- This tells `quadprog` how many of the constraints are equality constraints.
+- We have $1$ such in the matrix $C$ and it is its first row with the mapped classes for each sample.
+
+</details>
+
+<details>
+
+<summary>What value would we give to "factorized"?</summary>
+
+We'll keep it at `False`, since we'll be passing the raw matrix `G`.
+
+</details>
+
+Once we solve the above optimization problem, we'll get the $\alpha$s (the first argument that `solve_qp` returns) and we can compute $b$:
+
+$$b = \text{mean} \left[ y_i - \sum_j \alpha_j y_j K(x_j, x_i) \right]$$
+
+only for samples $i$ where $0 < \alpha_i < C$
+
+And our prediction function for the positive class becomes:
+
+$$\sum_i \alpha_i y_i K(x_i, u) + b >= 0$$
+
+### `SVC` in `scikit-learn`
+
+This is the implementation of the `Kernel SVM` in `sklearn`.
+
+```python
+from sklearn import datasets, svm
+
+wine = datasets.load_wine()
+
+svm = svm.SVC()
+svm.fit(wine.data, wine.target)
+svm.score(wine.data, wine.target)
+```
+
+```console
+0.7078651685393258
+```
+
+With default hyperparameters the accuracy is not particularly high, but it's possible to tune them to achieve `100%` training accuracy (by adjusting `gamma` and `C`). Such a classifier would be overfitting the training set, which is a risk we take when using more complex models.
+
+### `LinearSVC` in `scikit-learn`
+
+Apart from the `Kernel SVM` it is possible to train a **linear** classifier that maximizes the width of the street. It can be trained using stochastic gradient descent and thus is:
+
+- creating the same boundary that we'd get by using a `Kernel SVM` with `kernel=linear`, but the optimization procedure is different.
+- much faster than `Kernel SVM` to `fit` and `predict`;
+- unable to work with the kernel trick since the decision boundary is linear.
+
+In `scikit-learn` this flavor of SVM is implemented as the class `LinearSVC` (**linear** support vector classifier):
+
+```python
+from sklearn import datasets, svm
+
+wine = datasets.load_wine()
+print(type(wine))
+print(dir(wine))
+print(set(wine.target))
+
+svm = svm.LinearSVC()
+svm.fit(wine.data, wine.target)
+svm.score(wine.data, wine.target)
+```
+
+```console
+<class 'sklearn.utils._bunch.Bunch'>
+['DESCR', 'data', 'feature_names', 'frame', 'target', 'target_names']
+{np.int64(0), np.int64(1), np.int64(2)}
+0.9887640449438202
+```
+
+We see that the `wine` dataset has more than `2` classes and the classifier handles them automatically using the one-vs-rest strategy (like `LogisticRegression`).
+
+### Loss function diagrams
+
+The linear SVM uses a different / new loss function - [the Hinge loss](https://en.wikipedia.org/wiki/Hinge_loss). In the soft margin SVM (a margin that allows for some misclassifications), the total loss combines the hinge loss with the regularization term:
+
+$$
+\min_{\mathbf{w}, b} \quad \frac{1}{2} \|\mathbf{w}\|^2 + C \sum_{i=1}^n \max(0, 1 - y_i (\mathbf{w} \cdot \mathbf{x}_i + b))
+$$
+
+We want to draw loss functions, so let's set up a plot with `loss` on the vertical axis. On the horizontal axis we'll plot the `raw model output`.
+
+Let's say that the training example is from class `+1`.Then, the right half represents correct predictions and the left half represents incorrect predictions.
+
+![w07_loss_diagrams_1.png](assets/w07_loss_diagrams_1.png "w07_loss_diagrams_1.png")
+
+Here's how the loss used by logistic regression looks like:
+
+![w07_loss_logistic.png](assets/w07_loss_logistic.png "w07_loss_logistic.png")
+
+<details>
+
+<summary>What was the loss function for logistic regression?</summary>
+
+Binary cross entropy / Log loss:
+
+$\text{Log Loss} = \sum_{(x,y)\in D} -y\log(y') - (1 - y)\log(1 - y')$
+
+</details>
+
+And here is the [`hinge loss`](https://en.wikipedia.org/wiki/Hinge_loss) used by support vector machines in comparison:
+
+![w07_loss_logistic_hinge.png](assets/w07_loss_logistic_hinge.png "w07_loss_logistic_hinge.png")
+
+For an intended output $t = ±1$ and a classifier score $y$, the hinge loss of the prediction $y$ is defined as:
+
+$${hidge(y)=\max(0,1-t\cdot y)} \text{,   where   } y = \mathbf{w}^\intercal \cdot \mathbf{x} - b$$
+
+Note that as we move to the right, towards the zone of correct predictions, the loss goes down.
+
+Which of the four loss functions makes sense for classification?
+    ![w07_best_loss_fn.png](assets/w07_best_loss_fn.png "w07_best_loss_fn.png")
+
+```text
+A. (1)
+B. (2)
+C. (3)
+D. (4)
+```
+
+<details>
+
+<summary>Reveal answer:</summary>
+
+B.
+
+</details>
+
+### Comparing logistic regression and SVM
+
+Let's compare as a final step the two linear classifiers, logistic regression and linear SVMs.
+
+| Logistic Regression                     | Linear Support Vector Machine                  |
+| --------------------------------------- | ---------------------------------------------- |
+| a linear classifier                     | a linear classifier                            |
+| can utilize kernels, but is very slow   | can utilize kernels and fast                   |
+| outputs easy-to-interpret probabilities | does not naturally output probabilities        |
+| can be extended to multiclass           | can be extended to multiclass                  |
+| all data points affect fit              | only "support vectors" affect fit              |
+| has L1 and L2 regularization            | without extending, uses only L2 regularization |
+
+Comparing the use in scikit-learn, we have:
+
+| Logistic Regression                   | Linear Support Vector Machine                  |
+| ------------------------------------- | ---------------------------------------------- |
+| `linear_model.LogisticRegression`     | `svm.LinearSVC` and `svm.SVC(kernel='linear')` |
+| `C` (inverse regularization strength) | `C` (inverse regularization strength)          |
+| `penalty` (type of regularization)    | `kernel` (type of transformation)              |
+| `multi_class` (type of multiclass)    | `gamma` (inverse RBF smoothness)               |
+
+### [`SGDClassifier`](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.SGDClassifier.html)
+
+This is a classifier that is a wrapper around logistic regression and linear SVMs. One "gotcha" is that the regularization hyperparameter is called `alpha`, instead of `C`, and bigger `alpha` means more regularization. Basically, `alpha = 1/C`.
+
+```python
+from sklearn.linear_model import SGDClassifier
+
+# to switch between logistic regression and a linear SVM, one only has to set the "loss" hyperparameter
+
+logreg = SGDClassifier(loss='log_loss')
+logsvm = SGDClassifier(loss='hidge')
+```
+
+Which of the following is an advantage of SVMs over logistic regression?
+
+```text
+A. They naturally output meaningful probabilities.
+B. They can be used with kernels.
+C. They are computationally efficient with kernels.
+D. They learn sigmoidal decision boundaries.
+```
+
+<details>
+
+<summary>Reveal answer:</summary>
+
+C. Having a limited number of support vectors makes kernel SVMs computationally efficient.
+
+</details>
+
+Which of the following is an advantage of logistic regression over SVMs?
+
+```text
+A. It naturally outputs meaningful probabilities.
+B. It can be used with kernels.
+C. It is computationally efficient with kernels.
+D. It learns sigmoidal decision boundaries.
+```
+
+<details>
+
+<summary>Reveal answer:</summary>
+
+A.
 
 </details>
