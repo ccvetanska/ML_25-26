@@ -19,7 +19,7 @@ Perform exploratory data analysis to see how the features can be used to predict
 
 **Acceptance criteria:**
 
-1. An Excel file, titled `data_audit`, with **multiple sheets** is produced, similar to the one referenced in the test case.
+1. An Excel file, titled `data_audit`, with **multiple sheets** is produced.
 
 ### Task 02
 
@@ -57,7 +57,7 @@ Perform exploratory data analysis to see how the features can be used to solve t
 
 **Acceptance criteria:**
 
-1. An Excel file, titled `data_audit`, with **multiple sheets** is produced, similar to the one referenced in the test case.
+1. An Excel file, titled `data_audit`, with **multiple sheets** is produced.
 
 ### Task 04
 
@@ -125,7 +125,7 @@ Perform exploratory data analysis to see how the features can be used to solve t
 
 **Acceptance criteria:**
 
-1. An Excel file, titled `data_audit`, with **multiple sheets** is produced, similar to the one referenced in the test case.
+1. An Excel file, titled `data_audit`, with **multiple sheets** is produced.
 
 ### Task 07
 
