@@ -133,6 +133,30 @@
     - [Loss function diagrams](#loss-function-diagrams)
     - [Comparing logistic regression and SVM](#comparing-logistic-regression-and-svm)
     - [`SGDClassifier`](#sgdclassifier)
+- [Week 06 - The Bias-Variance Tradeoff. Decision Trees](#week-06---the-bias-variance-tradeoff-decision-trees)
+  - [Decision Trees](#decision-trees)
+    - [Classification-And-Regression-Tree (`CART`)](#classification-and-regression-tree-cart)
+      - [Classification tree](#classification-tree)
+        - [What is a classification tree?](#what-is-a-classification-tree)
+        - [How does a classification tree learn?](#how-does-a-classification-tree-learn)
+        - [What criterion is used to measure the impurity of a node?](#what-criterion-is-used-to-measure-the-impurity-of-a-node)
+      - [Regression tree](#regression-tree)
+    - [The Bias-Variance Tradeoff](#the-bias-variance-tradeoff)
+      - [The goals of Supervised Learning](#the-goals-of-supervised-learning)
+      - [Difficulties in Approximating $f$](#difficulties-in-approximating-f)
+      - [Generalization Error](#generalization-error)
+      - [Model Complexity](#model-complexity)
+      - [Bias-Variance Tradeoff: A Visual Explanation](#bias-variance-tradeoff-a-visual-explanation)
+      - [Checkpoint](#checkpoint-1)
+    - [Train-test split revisited](#train-test-split-revisited)
+      - [Estimating the Generalization Error](#estimating-the-generalization-error)
+      - [Diagnose Variance Problems](#diagnose-variance-problems)
+      - [Diagnose Bias Problems](#diagnose-bias-problems)
+    - [Ensemble Learning](#ensemble-learning)
+      - [Advantages of CARTs](#advantages-of-carts)
+      - [Limitations of CARTs](#limitations-of-carts)
+      - [What is Ensemble Learning?](#what-is-ensemble-learning)
+      - [The `Voting Classifier`](#the-voting-classifier)
 
 # Week 01 - Numpy, Pandas, Matplotlib & Seaborn
 
@@ -5768,3 +5792,354 @@ D. It learns sigmoidal decision boundaries.
 A.
 
 </details>
+
+# Week 06 - The Bias-Variance Tradeoff. Decision Trees
+
+## Decision Trees
+
+### Classification-And-Regression-Tree (`CART`)
+
+#### Classification tree
+
+##### What is a classification tree?
+
+Given a labeled dataset, a classification tree learns a **sequence** of **if-else** questions about **individual features** in order to infer the labels.
+
+In contrast to linear models, trees:
+
+- capture ***naturally* non-linear relationships** between features and labels;
+- don't require the features to be on the same scale through standardization/normalization.
+
+Let's try to predict whether a tumor is malignant or benign in the [Wisconsin Breast Cancer dataset](https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_breast_cancer.html) using only `2` features.
+
+![w07_dt_example1.png](assets/w07_dt_example1.png "w07_dt_example1.png")
+
+When a classification tree is trained on this dataset, the tree learns a sequence of if-else questions.
+
+Each question involves `1` feature and `1` **split-point**.
+
+![w07_dt_example2.png](assets/w07_dt_example2.png "w07_dt_example2.png")
+
+1. At the top, the tree asks whether the mean of the concave-points is <= `0.051`. If it is, the instance traverses the `True` branch; otherwise, it traverses the `False` branch.
+2. The instance keeps traversing the internal branches until it reaches an end (a leaf node).
+3. The label of the instance is then predicted to be that of the **prevailing class at that end**.
+
+In scikit-learn the class for creating decision trees is called `DecisionTreeClassifier` and can be found in `sklearn.tree`. Here's how we could implement the above solution
+
+```python
+from sklearn.model_selection import train_test_split
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.metrics import accuracy_score
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, stratify=y, random_state=1)
+
+dt = DecisionTreeClassifier(max_depth=2, random_state=1)
+dt.fit(X_train, y_train)
+y_pred = dt.predict(X_test)
+accuracy_score(y_test, y_pred)
+```
+
+```console
+0.90350877192982459
+```
+
+To understand the tree's predictions more concretely, let's see how it classifies instances in the feature-space.
+
+![w07_dt_vs_logreg.png](assets/w07_dt_vs_logreg.png "w07_dt_vs_logreg.png")
+
+- the left figure shows the decision regions of a logistic regression:
+  - note how the boundary is a straight-line.
+- the right figure shows the decision regions of a classification tree:
+  - see how it produces rectangular decision regions in the feature space:
+    - this happens because at each split made by the tree, only `1` feature is involved.
+
+##### How does a classification tree learn?
+
+Until now we know that:
+
+- **Decision Tree:** a binary data structure consisting of a hierarchy of nodes;
+- **Non-leaf Node:** question;
+- **Leaf Node:** prediction.
+
+![w07_dt_structure.png](assets/w07_dt_structure.png "w07_dt_structure.png")
+
+The nodes of a classification tree are grown recursively. At each node, a tree asks a question involving one feature `f` and a split-point `sp`.
+
+![w07_dt_structure_general.png](assets/w07_dt_structure_general.png "w07_dt_structure_general.png")
+
+But how does it know which feature and which split-point to pick?
+
+- It considers that every node contains an amount of uncertainty and aims to minimize that amount in the children nodes (make them more **pure**) with each split.
+
+- The above is equivalent to saying that the tree maximizes the **information gain** it makes with every split.
+
+Consider the case where a node with `N` samples is split into a left-node with `Nleft` samples and a right-node with `Nright` samples. The information gain (or the amount of uncertainty removed) for such split is given by this formula:
+
+![w07_ig_formula.png](assets/w07_ig_formula.png "w07_ig_formula.png")
+
+Here `I` is the amount of uncertainty and `IG` is information gain.[^1]
+
+##### What criterion is used to measure the impurity of a node?
+
+There are different criteria you can use among which are the **gini-index** and **entropy**.
+
+**Gini Index Formula and Example[^2]:**
+
+![w07_gini_formula.png](assets/w07_gini_formula.png "w07_gini_formula.png")
+
+**Entropy Formula and Example[^3]:**
+
+![w07_entropy_formula.png](assets/w07_entropy_formula.png "w07_entropy_formula.png")
+
+Note that here when we're considering multiple splits, we take the weighted averages between the entropies for each split:
+
+![w07_entropy_example.png](assets/w07_entropy_example.png "w07_entropy_example.png")
+
+The default criteria in scikit-learn is `gini`, though we could also specify `entropy`. Often we would compare both in a grid search.
+
+```python
+dt_with_gini = DecisionTreeClassifier(criterion='gini') # default
+dt_with_entropy = DecisionTreeClassifier(criterion='entropy')
+```
+
+<details>
+
+<summary>
+Which of the following is not true?
+
+1. The existence of a node depends on the state of its predecessors.
+2. The impurity of a node can be determined using different criteria such as entropy and the gini-index.
+3. When the information gain resulting from splitting a node is null, the node is declared as a leaf.
+4. When an internal node is split, the split is performed in such a way so that information gain is minimized.
+
+Click to reveal answer.
+</summary>
+
+Answer: 4. It's quite the contrary - splitting an internal node always involves maximizing the information gain.
+
+</details>
+
+#### Regression tree
+
+Below the [`automobile miles-per-gallon`](https://archive.ics.uci.edu/dataset/9/auto+mpg) dataset is shown (it's also present in our `DATA` folder as `auto.csv`).
+
+![w07_mpg.png](assets/w07_mpg.png "w07_mpg.png")
+
+It consists of `6` features corresponding to the characteristics of a car and a continuous target variable labeled `mpg` (miles-per-gallon). Our task is to predict the mpg consumption of a car given these features.
+
+Let's try to do this by only using the displacement of a car - `displ`.
+
+A 2D scatter plot shows that the mpg-consumption decreases **nonlinearly** with displacement.
+
+![w07_mpg_scatter.png](assets/w07_mpg_scatter.png "w07_mpg_scatter.png")
+
+When a regression tree is trained on a dataset, the **impurity** of a node is measured using the **mean-squared error** of the targets in that node.
+
+![w07_regression_tree.png](assets/w07_regression_tree.png "w07_regression_tree.png")
+
+This means that the regression tree tries to find the splits that produce leafs where in each leaf the target values are on average, the closest possible to the mean-value of the labels in that particular leaf.
+
+As a new instance traverses the tree and reaches a certain leaf, its target-variable `y` is computed as the average of the target-variables contained in that leaf.
+
+![w07_regression_tree_example.png](assets/w07_regression_tree_example.png "w07_regression_tree_example.png")
+
+To highlight the importance of the flexibility of regression trees, take a look at this figure. The regression tree shows a greater flexibility and is able to capture the non-linearity, though not fully.
+
+![w07_regression_tree_vs_lin_reg.png](assets/w07_regression_tree_vs_lin_reg.png "w07_regression_tree_vs_lin_reg.png")
+
+### The Bias-Variance Tradeoff
+
+In supervised learning, you make the assumption: $y = f(x), f$ is unknown.
+
+$f$ shown in red is an unknown function that you want to determine. Real data, however, is always accompanied with randomness or noise like the blue points.
+
+![w07_bv_tradeoff_example1.png](assets/w07_bv_tradeoff_example1.png "w07_bv_tradeoff_example1.png")
+
+#### The goals of Supervised Learning
+
+- find a model $\hat{f}$ that best approximates $f$: $\hat{f} \approx f$:
+  - $\hat{f}$ can be any machine learning model: logistic regression, decision tree, neural network, etc.
+- discard noise as much as possible;
+- $\hat{f}$ should achieve a low predictive error on unseen data.
+
+#### Difficulties in Approximating $f$
+
+- **Overfitting:** $\hat{f}(x)$ fits the training set noise.
+
+![w07_overfitting.png](assets/w07_overfitting.png "w07_overfitting.png")
+
+- **Underfitting:** $\hat{f}$ is not flexible enough / complex enough to approximate $f$.
+
+![w07_underfitting.png](assets/w07_underfitting.png "w07_underfitting.png")
+
+#### Generalization Error
+
+- **Generalization Error of $\hat{f}$**: Quantifies how well $\hat{f}$ generalizes on unseen data.
+- It can be decomposed to:
+
+$$\hat{f} = bias^2 + variance + irreducible\ error$$
+
+- **Bias:** error term that quantifies how much on average the model fails to predict the true outcome ($\hat{f} \neq f$). Here is a model with high bias:
+
+![w07_bias.png](assets/w07_bias.png "w07_bias.png")
+
+- **Variance:** error term that quantifies how much $\hat{f}$ is inconsistent over different training sets (how overfit the model is). Here is a model with high variance:
+
+![w07_variance.png](assets/w07_variance.png "w07_variance.png")
+
+- **Irreducible error:** The error contribution of noise. There can never be a perfect model, so we regard this term as a small constant that is always present.
+
+#### Model Complexity
+
+- The easiest way in which we can control how well $\hat{f}$ approximates $f$ is by varying its (the model's) complexity.
+- Examples: Maximum tree depth, Minimum samples per leaf, Number of features used, Number of neurons, etc.
+- This diagram is known as the **Bias-Variance Tradeoff**: it shows how the best model complexity corresponds to the lowest generalization error.
+
+![w07_bv_diagram.png](assets/w07_bv_diagram.png "w07_bv_diagram.png")
+
+#### Bias-Variance Tradeoff: A Visual Explanation
+
+Let's say that we want to create a model that predicts `2D` points.
+
+The inner-most blue circle of the below diagrams represents perfect predictions with `0` error (in a certain threshold (the value of which does not matter)). The squares represent individual predictions.
+
+The `x` and `y` axes represent the errors made for each coordinate - the center represents perfect predictions, so the errors are near `0`.
+
+Then, we can visualize the bias-variance tradeoff with the following `4` diagrams:
+
+![w07_bv_diagram2.png](assets/w07_bv_diagram2.png "w07_bv_diagram2.png")
+
+#### Checkpoint
+
+- Which of the following correctly describes the relationship between $\hat{f}$'s complexity and $\hat{f}$'s bias and variance terms?
+
+```text
+A. As the complexity of decreases, the bias term increases while the variance term decreases.
+B. As the complexity of decreases, both the bias and the variance terms increase.
+C. As the complexity of increases, the bias term increases while the variance term decreases.
+D. As the complexity of increases, the bias term decreases while the variance term increases.
+```
+
+<details>
+
+<summary>Click to reveal answer</summary>
+
+Answer: D
+
+</details>
+
+- Visually diagnose whether a model is overfitting or underfitting the training set. Let's say you've trained two different models $A$ and $B$ on the `auto` dataset to predict the `mpg` consumption of a car using only the car's displacement (`displ`) as a feature. The following figure shows you scatterplots of `mpg` versus `displ` along with lines corresponding to the training set predictions of models $A$ and $B$ in red. Which of the following statements is true?
+
+    ![w07_checkpoint.png](assets/w07_checkpoint.png "w07_checkpoint.png")
+
+```text
+A. (A) suffers from high bias and overfits the training set.
+B. (A) suffers from high variance and underfits the training set.
+C. (B) suffers from high bias and underfits the training set.
+D. (B) suffers from high variance and underfits the training set.
+```
+
+<details>
+
+<summary>Click to reveal answer</summary>
+
+Answer: C. Model B is not able to capture the nonlinear dependence of `mpg` on `displ`.
+
+</details>
+
+### Train-test split revisited
+
+#### Estimating the Generalization Error
+
+- How do we estimate the generalization error of a model?
+- Cannot be done directly because:
+  - $f$ is unknown (if it was known, we would've just coded the formula);
+  - usually there's only one dataset;
+  - noise is unpredictable.
+- Solution: split the data into training and testing sets:
+  - fit $\hat{f}$ to the training set and evaluate the its error on the **unseen** test set;
+  - the generalization error of $\hat{f}$ $\approx$ test set error of $\hat{f}$.
+  - there's a problem with this approach, though: the test set should not be used until we're confident about $\hat{f}$'s performance.
+    - also, we can't evaluate $\hat{f}$ on the training set as that would give a biased estimate ($\hat{f}$ has already seen all training points).
+
+<details>
+
+<summary>What is the solution?</summary>
+
+K-Fold cross validation!
+
+![w07_kfold_recap_1.png](assets/w07_kfold_recap_1.png "w07_kfold_recap_1.png")
+
+The error is then calculated as the mean of the cross-validation results:
+
+![w07_kfold_recap_2.png](assets/w07_kfold_recap_2.png "w07_kfold_recap_2.png")
+
+</details>
+
+#### Diagnose Variance Problems
+
+- If CV error of $\hat{f}$ > training set error of $\hat{f}$: $\hat{f}$ suffers from **high variance**;
+- $\hat{f}$ is said to have **overfit** the training set. To remedy overfitting:
+  - decrease model complexity;
+    - decrease max tree depth, increase min samples per leaf, decrease number of neurons.
+  - gather more data.
+
+#### Diagnose Bias Problems
+
+- If CV error of $\hat{f} \approx$ training set error of $\hat{f}$ and this error is much greater than the disired error: $\hat{f}$ suffers from **high bias**;
+- $\hat{f}$ is said to have **underfit** the training set. To remedy underfitting:
+  - increase model complexity;
+    - increase max tree depth, decrease min samples per leaf, increase number of neurons, increase number of layers.
+  - gather more relevant features;
+  - feature engineering.
+
+- What do we deduct from the below outputs - overfitting or underfitting?
+
+    ![w07_kfold_checkpoint.png](assets/w07_kfold_checkpoint.png "w07_kfold_checkpoint.png")
+
+<details>
+
+<summary>Click to reveal answer</summary>
+
+Answer: overfitting. The cross-validation error is higher than the training error.
+
+</details>
+
+### Ensemble Learning
+
+#### Advantages of CARTs
+
+- Simple to understand;
+- Simple to interpret;
+- Easy to use;
+- Flexibility: ability to describe non-linear dependecies;
+- Preprocessing: no need to standardize or normalize features.
+
+#### Limitations of CARTs
+
+- Classification: can only produce orthogonal decision boundaries;
+- Sensitive to small variations in the training set;
+- High variance: unconstrained CARTs easily overfit the training set;
+- We can address these limitations by utilizing the **Ensemble Learning** technique.
+
+#### What is Ensemble Learning?
+
+- Train different models on the same dataset;
+- Let each model make its predictions;
+- Create a meta-model that aggregates the predictions of individual models;
+- Output the final prediction. Using this technique, we get more robust results that are less prone to errors;
+- Usually the best results are obtained when the used models are skillful in different ways:
+  - this can be achieved easily if different types of models are used (rather than a variation of the same model).
+
+![w07_ensemble.png](assets/w07_ensemble.png "w07_ensemble.png")
+
+#### The [`Voting Classifier`](https://scikit-learn.org/stable/modules/generated/sklearn.ensemble.VotingClassifier.html#sklearn.ensemble.VotingClassifier)
+
+Let's say we have a binary classification task.
+
+- We create $N$ classifiers and get their predictions for a single observation: $P_0, P_1, \dots, P_{n-1}$ with $P_i = 0$ or $1$.
+- Those predictions get passed to a meta-model. In the case of the `Voting Classifier`, this model is simply a majority vote on the predictions.
+  - If $N$ is even and the predictions get event, a class is chosen at random.
+  - Therefore, aviod setting $N$ to an even number.
+
+![w07_ensemble_voting_clf.png](assets/w07_ensemble_voting_clf.png "w07_ensemble_voting_clf.png")
