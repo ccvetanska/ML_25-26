@@ -219,7 +219,7 @@ Let's implement the `Kernel SVM` in a class `SVC`. It should have the following 
 
 **Acceptance criteria:**
 
-1. A class `SVC` is added in the package `ml_lib.svm`.
+1. A class `SVC` is added in the module `ml_lib.svm`.
 2. The class `SVC` implements a `Kernel SVM` that can utilize the *Kernel trick*.
 
 ### Task 03
