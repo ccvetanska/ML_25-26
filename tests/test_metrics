@@ -1,0 +1,14 @@
+from ml_lib.metrics import euclidean_distance, manhattan_distance
+
+
+def test_euclidean_distance_2d():
+    assert euclidean_distance([0, 0], [3, 4]) == 5.0
+
+def test_euclidean_distance_3d():
+    assert euclidean_distance([1, 2, 3], [4, 6, 3]) == 5.0
+
+def test_manhattan_distance_2d():
+    assert manhattan_distance([0, 0], [3, 4]) == 7.0
+
+def test_manhattan_distance_3d():
+    assert manhattan_distance([1, 2, 3], [4, 6, 3]) == 7.0
