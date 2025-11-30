@@ -147,8 +147,8 @@ def main():
                                                         test_size=0.3,
                                                         random_state=21,
                                                         stratify=y)
-    # create_neighboors_comparision_ws(X_train, X_test, y_train, y_test)
-    # create_hyperparameter_tuning_ws(X_train, X_test, y_train, y_test)
+    #create_neighboors_comparision_ws(X_train, X_test, y_train, y_test)
+    create_hyperparameter_tuning_ws(X_train, X_test, y_train, y_test)
 
 
 if __name__ == '__main__':

@@ -1,5 +1,3 @@
-# ml_lib/neighbors.py
-
 import numpy as np
 import pandas as pd
 
