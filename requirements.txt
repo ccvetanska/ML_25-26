@@ -14,4 +14,7 @@ pillow
 yapf
 PyQt6
 quadprog
+nltk
+gensim
+spacy
 openpyxl
